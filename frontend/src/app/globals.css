@@ -1,0 +1,55 @@
+@import "tailwindcss";
+
+:root {
+  /* Elegant Premium Pista & Sage Palette */
+  --color-brand-bg: #F6F8F3;
+  --color-brand-bg-soft: #E2EADF;
+  --color-brand-text: #2C352C;
+  --color-brand-text-muted: #5F6E5F;
+  --color-brand-accent: #6B8E70;
+  --color-brand-accent-hover: #527457;
+  --color-brand-dark: #1C251C;
+  --color-brand-border: #E3EAE0;
+  
+  /* Fonts will be loaded and injected as CSS variables by layout.jsx */
+  --font-sans: var(--font-sans);
+  --font-serif: var(--font-serif);
+}
+
+@theme {
+  --color-brand-bg: var(--color-brand-bg);
+  --color-brand-bg-soft: var(--color-brand-bg-soft);
+  --color-brand-text: var(--color-brand-text);
+  --color-brand-text-muted: var(--color-brand-text-muted);
+  --color-brand-accent: var(--color-brand-accent);
+  --color-brand-accent-hover: var(--color-brand-accent-hover);
+  --color-brand-dark: var(--color-brand-dark);
+  --color-brand-border: var(--color-brand-border);
+
+  --font-sans: var(--font-sans);
+  --font-serif: var(--font-serif);
+}
+
+body {
+  background-color: var(--color-brand-bg);
+  color: var(--color-brand-text);
+  font-family: var(--font-sans);
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-brand-bg);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-brand-bg-soft);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-brand-accent);
+}

@@ -1,0 +1,13 @@
+django
+djangorestframework
+djangorestframework-simplejwt
+dj-rest-auth
+django-allauth
+django-cors-headers
+psycopg2-binary
+boto3
+django-storages
+python-dotenv
+Pillow
+razorpay
+cryptography
