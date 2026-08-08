@@ -31,6 +31,7 @@ urlpatterns = [
     path("api/invitations/", include("apps.invitations.urls")),
     path("api/orders/", include("apps.orders.urls")),
     path("api/media/", include("apps.media.urls")),
+    path("api/users/admin/", __import__("apps.users.views", fromlist=["AdminUserListView"]).AdminUserListView.as_view(), name="admin-users-list"),
 ]
 
 if settings.DEBUG:

@@ -108,20 +108,20 @@ Phase 3  →  Agency / White-Label Tier & Domains (3–4 weeks)
 ---
 
 ### 2.1 RSVP Guest List Dashboard
-- [ ] **Guest List Panel**: Dedicated tab inside `/dashboard` for each invitation page
-- [ ] **Filters**: Filter list by status (Attending / Declined), search by Guest Name
-- [ ] **CSV Export**: Button to download RSVP guest list as Excel/CSV
-- [ ] **Manual RSVP Entry**: Allow the couple to manually add guests who RSVP'd offline
+- [x] **Guest List Panel**: Dedicated tab inside `/dashboard` for each invitation page
+- [x] **Filters**: Filter list by status (Attending / Declined), search by Guest Name
+- [x] **CSV Export**: Button to download RSVP guest list as Excel/CSV
+- [x] **Manual RSVP Entry**: Allow the couple to manually add guests who RSVP'd offline
 
 ### 2.2 Template Customization & Languages
-- [ ] **Multi-Language Support**: Enable Hindi / Tamil translation fields in editor
-- [ ] **Active Template Swapping**: Allow couples to swap to a different design theme without resetting text fields
-- [ ] **Custom Subdomain**: Let premium couples configure `<name>.cardessa.in` for their invitations
+- [x] **Multi-Language Support**: Enable Hindi / Tamil translation fields in editor
+- [x] **Active Template Swapping**: Allow couples to swap to a different design theme without resetting text fields
+- [x] **Custom Subdomain**: Let premium couples configure `<name>.cardessa.in` for their invitations
 
 ### 2.3 Expanded Admin Console Features
-- [ ] **User Directory**: View list of all registered users (Name, Email, Signup Date, role status).
-- [ ] **Subscription & Orders Log**: View real-time log of paid orders (User email, plan purchased, Razorpay order/payment IDs, transaction amount, payment date).
-- [ ] **System Dashboard Stats**: Admin panel homepage displaying summary cards (Total Users, Total Active Plans, Total Revenue).
+- [x] **User Directory**: View list of all registered users (Name, Email, Signup Date, role status).
+- [x] **Subscription & Orders Log**: View real-time log of paid orders (User email, plan purchased, Razorpay order/payment IDs, transaction amount, payment date).
+- [x] **System Dashboard Stats**: Admin panel homepage displaying summary cards (Total Users, Total Active Plans, Total Revenue).
 
 
 ---

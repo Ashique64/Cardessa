@@ -22,3 +22,17 @@ class OrderSerializer(serializers.ModelSerializer):
             "status", "features_snapshot", "created_at",
         ]
         read_only_fields = fields
+
+
+class AdminOrderSerializer(serializers.ModelSerializer):
+    plan_name = serializers.CharField(source="plan.name", read_only=True)
+    user_email = serializers.EmailField(source="user.email", read_only=True)
+
+    class Meta:
+        model = Order
+        fields = [
+            "id", "user_email", "plan_name", "razorpay_order_id", "razorpay_payment_id",
+            "amount_inr", "status", "created_at"
+        ]
+        read_only_fields = fields
+

@@ -89,4 +89,41 @@ class RSVPCreateView(generics.CreateAPIView):
         serializer.save(invitation=invitation)
 
 
+class InvitationRSVPListView(generics.ListCreateAPIView):
+    """
+    GET  /api/invitations/<slug>/rsvps/ — List guest responses for owner's invitation.
+    POST /api/invitations/<slug>/rsvps/ — Manually add a guest offline (owner only).
+    """
+    serializer_class = RSVPSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        slug = self.kwargs.get("slug")
+        try:
+            invitation = Invitation.objects.get(slug=slug, user=self.request.user)
+        except Invitation.DoesNotExist:
+            raise NotFound("Invitation not found or you are not the owner.")
+        
+        qs = invitation.rsvps.all()
+        
+        search = self.request.query_params.get("search")
+        if search:
+            qs = qs.filter(guest_name__icontains=search)
+            
+        status_param = self.request.query_params.get("status")
+        if status_param:
+            qs = qs.filter(status=status_param)
+            
+        return qs
+
+    def perform_create(self, serializer):
+        slug = self.kwargs.get("slug")
+        try:
+            invitation = Invitation.objects.get(slug=slug, user=self.request.user)
+        except Invitation.DoesNotExist:
+            raise NotFound("Invitation not found or you are not the owner.")
+        serializer.save(invitation=invitation)
+
+
+
 

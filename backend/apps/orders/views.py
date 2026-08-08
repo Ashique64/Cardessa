@@ -6,7 +6,7 @@ from rest_framework import generics, permissions, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from .models import Plan, Order
-from .serializers import PlanSerializer, OrderCreateSerializer, OrderSerializer
+from .serializers import PlanSerializer, OrderCreateSerializer, OrderSerializer, AdminOrderSerializer
 
 
 class PlanListView(generics.ListAPIView):
@@ -142,4 +142,50 @@ class UserHasPlanView(APIView):
             return Response({"has_plan": True})
         has_plan = Order.objects.filter(user=request.user, status="paid").exists()
         return Response({"has_plan": has_plan})
+
+
+from django.contrib.auth import get_user_model
+from apps.templates_app.models import Template
+from apps.invitations.models import Invitation
+from django.db.models import Sum
+
+User = get_user_model()
+
+class AdminOrderListView(generics.ListAPIView):
+    """
+    GET /api/orders/admin/
+    List all orders in the system (Admins only).
+    """
+    queryset = Order.objects.all().order_by("-created_at")
+    serializer_class = AdminOrderSerializer
+    permission_classes = [permissions.IsAdminUser]
+
+
+class AdminStatsView(APIView):
+    """
+    GET /api/orders/admin-stats/
+    Get system-wide summary metrics for dashboard (Admins only).
+    """
+    permission_classes = [permissions.IsAdminUser]
+
+    def get(self, request):
+        total_users = User.objects.count()
+        total_templates = Template.objects.count()
+        total_invitations = Invitation.objects.count()
+        
+        # Calculate total revenue
+        total_revenue_paise = Order.objects.filter(status="paid").aggregate(total=Sum("amount_inr"))["total"] or 0
+        total_revenue_inr = total_revenue_paise / 100.0
+
+        # Active paid plans count (users with at least one paid order)
+        active_plans = Order.objects.filter(status="paid").values("user").distinct().count()
+
+        return Response({
+            "total_users": total_users,
+            "total_templates": total_templates,
+            "total_invitations": total_invitations,
+            "total_revenue": total_revenue_inr,
+            "active_plans": active_plans,
+        }, status=status.HTTP_200_OK)
+
 

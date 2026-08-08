@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { useAuth } from "@/context/AuthContext";
@@ -38,7 +38,6 @@ function StatusPill({ status }) {
 function EmptyState() {
   return (
     <motion.div {...fadeUp} className="flex flex-col items-center justify-center py-28 px-8 text-center max-w-sm mx-auto space-y-8">
-      {/* Monogram seal */}
       <div className="relative">
         <div className="h-20 w-20 rounded-full border border-brand-border/60 bg-brand-bg-soft flex items-center justify-center">
           <div className="h-14 w-14 rounded-full border border-brand-accent/20 bg-brand-bg flex items-center justify-center">
@@ -69,10 +68,333 @@ function EmptyState() {
   );
 }
 
+// ─── Guest RSVP Manager Modal ───
+function RsvpManagerModal({ slug, onClose }) {
+  const [guests, setGuests] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+
+  // Form states for manual RSVP entry
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newGuest, setNewGuest] = useState({
+    guest_name: "",
+    email: "",
+    phone: "",
+    status: "attending",
+    guest_count: 1,
+    message: ""
+  });
+  const [addLoading, setAddLoading] = useState(false);
+
+  const fetchGuests = async () => {
+    setLoading(true);
+    try {
+      const token = localStorage.getItem("access_token");
+      let url = `${process.env.NEXT_PUBLIC_API_URL}/invitations/${slug}/rsvps/`;
+      const params = [];
+      if (search) params.push(`search=${encodeURIComponent(search)}`);
+      if (statusFilter !== "all") params.push(`status=${statusFilter}`);
+      if (params.length > 0) url += `?${params.join("&")}`;
+
+      const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setGuests(Array.isArray(data) ? data : data.results ?? []);
+      }
+    } catch {
+      alert("Failed to load guests list.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchGuests();
+  }, [slug, search, statusFilter]);
+
+  const handleAddGuest = async (e) => {
+    e.preventDefault();
+    setAddLoading(true);
+    try {
+      const token = localStorage.getItem("access_token");
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/invitations/${slug}/rsvps/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify(newGuest)
+      });
+      if (res.ok) {
+        setNewGuest({
+          guest_name: "",
+          email: "",
+          phone: "",
+          status: "attending",
+          guest_count: 1,
+          message: ""
+        });
+        setShowAddForm(false);
+        fetchGuests();
+      } else {
+        alert("Failed to add guest offline.");
+      }
+    } catch {
+      alert("Error adding guest offline.");
+    } finally {
+      setAddLoading(false);
+    }
+  };
+
+  const exportCSV = () => {
+    if (guests.length === 0) {
+      alert("No guests to export.");
+      return;
+    }
+    const headers = ["Guest Name", "Email", "Phone", "Status", "Guest Count", "Message", "Response Date"];
+    const rows = guests.map((g) => [
+      g.guest_name,
+      g.email || "",
+      g.phone || "",
+      g.status,
+      g.guest_count,
+      (g.message || "").replace(/,/g, " "),
+      g.created_at ? new Date(g.created_at).toLocaleDateString() : ""
+    ]);
+
+    const csvContent = "data:text/csv;charset=utf-8," 
+      + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `rsvps_${slug}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Metrics
+  const attendingGuests = guests.filter((g) => g.status === "attending");
+  const totalAttendingCount = attendingGuests.reduce((acc, curr) => acc + (curr.guest_count || 1), 0);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-brand-dark/70 backdrop-blur-xs font-sans"
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.96, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.96, y: 20 }}
+        transition={{ duration: 0.4 }}
+        className="bg-brand-bg w-full max-w-4xl h-[85vh] rounded-[32px] border border-brand-border/60 shadow-2xl flex flex-col overflow-hidden"
+      >
+        {/* Header */}
+        <header className="p-8 border-b border-brand-border/40 flex justify-between items-center bg-white">
+          <div className="space-y-1">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-brand-accent">RSVP Manager</span>
+            <h3 className="font-serif text-2xl font-light text-brand-dark tracking-tight">Guest List &amp; Responses</h3>
+          </div>
+          <button
+            onClick={onClose}
+            className="h-9 w-9 rounded-full bg-brand-bg-soft border border-brand-border/60 hover:bg-brand-dark hover:text-white transition flex items-center justify-center text-sm font-bold cursor-pointer"
+          >
+            ✕
+          </button>
+        </header>
+
+        {/* Dashboard stats & Filters */}
+        <div className="p-8 bg-brand-bg-soft/20 border-b border-brand-border/30 grid grid-cols-1 md:grid-cols-4 gap-6 shrink-0">
+          <div className="bg-white border border-brand-border/50 p-4 rounded-xl space-y-1">
+            <p className="font-serif text-2xl font-light text-brand-dark">{guests.length}</p>
+            <p className="text-[9px] text-brand-text-muted font-bold uppercase tracking-widest">Total Responses</p>
+          </div>
+          <div className="bg-white border border-brand-border/50 p-4 rounded-xl space-y-1">
+            <p className="font-serif text-2xl font-light text-emerald-600">{attendingGuests.length}</p>
+            <p className="text-[9px] text-brand-text-muted font-bold uppercase tracking-widest">Accepted RSVPs</p>
+          </div>
+          <div className="bg-white border border-brand-border/50 p-4 rounded-xl space-y-1">
+            <p className="font-serif text-2xl font-light text-brand-accent">{totalAttendingCount}</p>
+            <p className="text-[9px] text-brand-text-muted font-bold uppercase tracking-widest">Total Guest Count</p>
+          </div>
+          <div className="flex items-center justify-end gap-3">
+            <button
+              onClick={() => setShowAddForm(true)}
+              className="bg-brand-bg-soft hover:bg-brand-dark hover:text-white text-brand-dark text-[10px] font-bold uppercase tracking-widest py-3 px-4 border border-brand-border/60 rounded-xl transition cursor-pointer"
+            >
+              Add Guest
+            </button>
+            <button
+              onClick={exportCSV}
+              className="bg-brand-dark hover:bg-brand-accent text-brand-bg text-[10px] font-bold uppercase tracking-widest py-3 px-4 rounded-xl transition cursor-pointer"
+            >
+              Export CSV
+            </button>
+          </div>
+        </div>
+
+        {/* Search & Filters */}
+        <div className="px-8 py-4 border-b border-brand-border/20 flex gap-4 items-center shrink-0">
+          <input
+            type="text"
+            placeholder="Search guest name…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="flex-1 bg-white border border-brand-border rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-brand-accent focus:ring-1 focus:ring-brand-accent/15"
+          />
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="bg-white border border-brand-border rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-brand-accent focus:ring-1 focus:ring-brand-accent/15 font-semibold text-brand-dark"
+          >
+            <option value="all">All Statuses</option>
+            <option value="attending">Attending</option>
+            <option value="declined">Declined</option>
+          </select>
+        </div>
+
+        {/* Body content scroll area */}
+        <div className="flex-1 overflow-y-auto p-8 relative">
+          
+          {/* Add Guest offline form overlay */}
+          <AnimatePresence>
+            {showAddForm && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                className="absolute inset-x-8 top-8 bg-white border border-brand-border/60 p-6 rounded-2xl shadow-lg z-20 space-y-4"
+              >
+                <div className="flex justify-between items-center border-b border-zinc-150 pb-2">
+                  <h4 className="font-serif text-sm font-semibold text-brand-dark">Manually Add Guest</h4>
+                  <button onClick={() => setShowAddForm(false)} className="text-zinc-400 hover:text-zinc-650 text-xs">Cancel</button>
+                </div>
+                <form onSubmit={handleAddGuest} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <input
+                    type="text"
+                    required
+                    placeholder="Guest Name"
+                    value={newGuest.guest_name}
+                    onChange={(e) => setNewGuest({ ...newGuest, guest_name: e.target.value })}
+                    className="w-full border border-brand-border rounded-xl px-3 py-2 text-xs focus:outline-none"
+                  />
+                  <input
+                    type="email"
+                    placeholder="Email (Optional)"
+                    value={newGuest.email}
+                    onChange={(e) => setNewGuest({ ...newGuest, email: e.target.value })}
+                    className="w-full border border-brand-border rounded-xl px-3 py-2 text-xs focus:outline-none"
+                  />
+                  <input
+                    type="tel"
+                    placeholder="Phone (Optional)"
+                    value={newGuest.phone}
+                    onChange={(e) => setNewGuest({ ...newGuest, phone: e.target.value })}
+                    className="w-full border border-brand-border rounded-xl px-3 py-2 text-xs focus:outline-none"
+                  />
+                  <div className="grid grid-cols-2 gap-3">
+                    <select
+                      value={newGuest.status}
+                      onChange={(e) => setNewGuest({ ...newGuest, status: e.target.value })}
+                      className="w-full border border-brand-border rounded-xl px-3 py-2 text-xs focus:outline-none"
+                    >
+                      <option value="attending">Attending</option>
+                      <option value="declined">Declined</option>
+                    </select>
+                    <input
+                      type="number"
+                      min="1"
+                      max="10"
+                      value={newGuest.guest_count}
+                      onChange={(e) => setNewGuest({ ...newGuest, guest_count: parseInt(e.target.value) || 1 })}
+                      className="w-full border border-brand-border rounded-xl px-3 py-2 text-xs focus:outline-none"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <input
+                      type="text"
+                      placeholder="Custom wish message…"
+                      value={newGuest.message}
+                      onChange={(e) => setNewGuest({ ...newGuest, message: e.target.value })}
+                      className="w-full border border-brand-border rounded-xl px-3 py-2 text-xs focus:outline-none"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={addLoading}
+                    className="md:col-span-2 bg-brand-dark hover:bg-brand-accent text-brand-bg text-xs font-bold uppercase tracking-wider py-3 rounded-xl transition"
+                  >
+                    {addLoading ? "Saving…" : "Save Guest Response"}
+                  </button>
+                </form>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {loading ? (
+            <div className="flex items-center justify-center py-20 gap-3">
+              <div className="animate-spin h-5 w-5 border-4 border-brand-accent border-t-transparent rounded-full" />
+              <span className="text-xs text-brand-text-muted">Loading responses…</span>
+            </div>
+          ) : guests.length === 0 ? (
+            <div className="text-center py-20 text-brand-text-muted italic text-xs">
+              No responses found matching current filters.
+            </div>
+          ) : (
+            <div className="overflow-x-auto bg-white border border-brand-border/40 rounded-2xl">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-brand-bg-soft/30 border-b border-brand-border/40">
+                    <th className="p-4 text-[9px] uppercase tracking-widest font-bold text-brand-dark/75">Guest Name</th>
+                    <th className="p-4 text-[9px] uppercase tracking-widest font-bold text-brand-dark/75">Status</th>
+                    <th className="p-4 text-[9px] uppercase tracking-widest font-bold text-brand-dark/75">Count</th>
+                    <th className="p-4 text-[9px] uppercase tracking-widest font-bold text-brand-dark/75">Contact Details</th>
+                    <th className="p-4 text-[9px] uppercase tracking-widest font-bold text-brand-dark/75">Wishes</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-brand-border/20 text-xs">
+                  {guests.map((g) => (
+                    <tr key={g.id} className="hover:bg-brand-bg-soft/10">
+                      <td className="p-4 font-medium text-brand-dark">{g.guest_name}</td>
+                      <td className="p-4">
+                        {g.status === "attending" ? (
+                          <span className="text-[9px] font-bold uppercase tracking-wider text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200/50">Attending</span>
+                        ) : (
+                          <span className="text-[9px] font-bold uppercase tracking-wider text-red-500 bg-red-50 px-2 py-0.5 rounded-full border border-red-200/50">Declined</span>
+                        )}
+                      </td>
+                      <td className="p-4 text-brand-text-muted font-bold">{g.guest_count}</td>
+                      <td className="p-4 space-y-0.5">
+                        {g.email && <p className="text-zinc-500">{g.email}</p>}
+                        {g.phone && <p className="text-zinc-500">{g.phone}</p>}
+                        {!g.email && !g.phone && <span className="text-zinc-400 font-light">—</span>}
+                      </td>
+                      <td className="p-4 text-brand-text-muted max-w-44 truncate italic">
+                        {g.message || "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
 export default function DashboardPage() {
   const { user } = useAuth();
   const [invitations, setInvitations] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedInviteSlug, setSelectedInviteSlug] = useState(null);
 
   useEffect(() => {
     const fetchInvitations = async () => {
@@ -215,6 +537,13 @@ export default function DashboardPage() {
                     <div className="flex flex-wrap items-center gap-3 shrink-0">
                       <StatusPill status={item.status} />
 
+                      <button
+                        onClick={() => setSelectedInviteSlug(item.slug)}
+                        className="bg-brand-bg border border-brand-border/60 hover:bg-brand-accent hover:border-brand-accent hover:text-white text-brand-dark font-bold py-2.5 px-5 rounded-xl text-xs uppercase tracking-wider transition-all duration-300 cursor-pointer"
+                      >
+                        Guest RSVPs
+                      </button>
+
                       {item.slug && (
                         <a
                           href={`/i/${item.slug}`}
@@ -240,6 +569,15 @@ export default function DashboardPage() {
           )}
         </motion.div>
       </main>
+
+      <AnimatePresence>
+        {selectedInviteSlug && (
+          <RsvpManagerModal
+            slug={selectedInviteSlug}
+            onClose={() => setSelectedInviteSlug(null)}
+          />
+        )}
+      </AnimatePresence>
 
       <Footer />
     </div>

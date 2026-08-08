@@ -86,42 +86,94 @@ export default function EditorPage() {
   const { user, isLoading: authLoading } = useAuth();
   const [checkingPlan, setCheckingPlan] = useState(true);
 
-  // Gated access check
+  // Editor states
+  const [activeTab, setActiveTab] = useState("content");
+  const [dbTemplateId, setDbTemplateId] = useState("");
+  const [subdomain, setSubdomain] = useState("");
+  const [isPublished, setIsPublished] = useState(false);
+  const [eventDate, setEventDate] = useState("");
+
+  const [invitationData, setInvitationData] = useState({
+    groom: "Rahul",
+    bride: "Priya",
+    time: "18:00",
+    venueName: "Grand Palace Resort",
+    venueAddress: "Bypass road, Mumbai, MH",
+    bgColor: "#F6F4F0",
+    primaryColor: "#6B8E70",
+    musicEnabled: true,
+    translations: {
+      hi: { groom: "", bride: "" },
+      ta: { groom: "", bride: "" }
+    }
+  });
+
+  const [templates, setTemplates] = useState([]);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [previewLanguage, setPreviewLanguage] = useState("en"); // en / hi / ta
+  const [saving, setSaving] = useState(false);
+
+  // Load templates list & active invitation values
   useEffect(() => {
     if (authLoading) return;
     if (!user) {
       router.push("/login");
       return;
     }
-    const check = async () => {
+
+    const loadWorkspace = async () => {
       try {
-        const res = await ordersApi.checkPlan();
-        if (!res.data.has_plan) {
+        const token = localStorage.getItem("access_token");
+        // Verify plan first
+        const planRes = await ordersApi.checkPlan();
+        if (!planRes.data.has_plan) {
           router.push("/pricing");
-        } else {
-          setCheckingPlan(false);
+          return;
         }
+
+        // Fetch templates
+        const tplRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/templates/`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (tplRes.ok) {
+          const tpls = await tplRes.json();
+          setTemplates(tpls);
+        }
+
+        // Fetch invitation detail
+        const inviteRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/invitations/${slug}/`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (inviteRes.ok) {
+          const invite = await inviteRes.json();
+          setDbTemplateId(invite.template || "");
+          setSubdomain(invite.custom_subdomain || "");
+          setIsPublished(!!invite.is_published);
+          setEventDate(invite.event_date || "");
+          if (invite.config) {
+            setInvitationData({
+              groom: invite.config.groom || "Rahul",
+              bride: invite.config.bride || "Priya",
+              time: invite.config.time || "18:00",
+              venueName: invite.config.venueName || "Grand Palace Resort",
+              venueAddress: invite.config.venueAddress || "Bypass road, Mumbai, MH",
+              bgColor: invite.config.bgColor || "#F6F4F0",
+              primaryColor: invite.config.primaryColor || "#6B8E70",
+              musicEnabled: invite.config.musicEnabled !== false,
+              translations: invite.config.translations || {
+                hi: { groom: "", bride: "" },
+                ta: { groom: "", bride: "" }
+              }
+            });
+          }
+        }
+        setCheckingPlan(false);
       } catch {
         router.push("/pricing");
       }
     };
-    check();
-  }, [user, authLoading, router]);
-
-  const [activeTab, setActiveTab] = useState("content");
-  const [invitationData, setInvitationData] = useState({
-    groom: "Rahul",
-    bride: "Priya",
-    date: "2026-11-15",
-    time: "18:00",
-    venueName: "Grand Palace Resort",
-    venueAddress: "Bypass road, Mumbai, MH",
-    bgColor: "#F6F4F0",
-    primaryColor: "#6B8E70",
-    musicEnabled: true
-  });
-
-  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+    loadWorkspace();
+  }, [user, authLoading, slug, router]);
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -129,6 +181,50 @@ export default function EditorPage() {
       ...prev,
       [name]: type === "checkbox" ? checked : value
     }));
+  };
+
+  const handleTranslationChange = (lang, field, value) => {
+    setInvitationData((prev) => ({
+      ...prev,
+      translations: {
+        ...prev.translations,
+        [lang]: {
+          ...(prev.translations[lang] || {}),
+          [field]: value
+        }
+      }
+    }));
+  };
+
+  const handleSaveAndPublish = async () => {
+    setSaving(true);
+    try {
+      const token = localStorage.getItem("access_token");
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/invitations/${slug}/`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          template: dbTemplateId,
+          custom_subdomain: subdomain || null,
+          is_published: true,
+          event_date: eventDate || null,
+          config: invitationData
+        })
+      });
+      if (res.ok) {
+        alert("Invitation successfully saved and published!");
+      } else {
+        const errors = await res.json();
+        alert("Save failed: " + Object.values(errors).flat().join(" "));
+      }
+    } catch {
+      alert("Error saving invitation.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (authLoading || checkingPlan) {
@@ -143,9 +239,13 @@ export default function EditorPage() {
     );
   }
 
-  // Format date display helper
-  const formattedDate = invitationData.date
-    ? new Date(invitationData.date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
+  // Preview formatting helpers
+  const displayGroom = invitationData.translations?.[previewLanguage]?.groom || invitationData.groom;
+  const displayBride = invitationData.translations?.[previewLanguage]?.bride || invitationData.bride;
+  const displayInitials = (displayGroom?.[0] || "") + (displayBride?.[0] || "");
+
+  const formattedDate = eventDate
+    ? new Date(eventDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
     : "Nov 15, 2026";
 
   return (
@@ -160,10 +260,11 @@ export default function EditorPage() {
           <span className="text-zinc-500 text-sm">Editing Invitation</span>
         </div>
         <button
-          onClick={() => alert("Changes saved successfully!")}
-          className="bg-zinc-900 hover:bg-zinc-800 text-white font-bold py-2.5 px-6 rounded-xl text-sm transition shadow-sm"
+          onClick={handleSaveAndPublish}
+          disabled={saving}
+          className="bg-zinc-900 hover:bg-zinc-800 text-white font-bold py-2.5 px-6 rounded-xl text-sm transition shadow-sm disabled:opacity-50"
         >
-          Save & Publish
+          {saving ? "Saving Changes…" : "Save & Publish"}
         </button>
       </header>
 
@@ -192,100 +293,190 @@ export default function EditorPage() {
 
           <div className="flex-1 p-6 overflow-y-auto space-y-6">
             {activeTab === "content" && (
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-zinc-700 uppercase tracking-wider mb-2">Groom's Name</label>
-                  <input
-                    type="text"
-                    name="groom"
-                    value={invitationData.groom}
-                    onChange={handleInputChange}
-                    className="w-full border border-zinc-200 rounded-xl py-2.5 px-3 text-sm focus:outline-none focus:ring-1 focus:ring-zinc-900"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-zinc-700 uppercase tracking-wider mb-2">Bride's Name</label>
-                  <input
-                    type="text"
-                    name="bride"
-                    value={invitationData.bride}
-                    onChange={handleInputChange}
-                    className="w-full border border-zinc-200 rounded-xl py-2.5 px-3 text-sm focus:outline-none focus:ring-1 focus:ring-zinc-900"
-                  />
-                </div>
+              <div className="space-y-5">
+                {/* Couple names */}
                 <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-zinc-700 uppercase tracking-wider mb-2">Event Date</label>
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-bold text-zinc-700 uppercase tracking-wider">Groom Name (EN)</label>
                     <input
-                      type="date"
-                      name="date"
-                      value={invitationData.date}
+                      type="text"
+                      name="groom"
+                      value={invitationData.groom}
                       onChange={handleInputChange}
-                      className="w-full border border-zinc-200 rounded-xl py-2.5 px-3 text-sm focus:outline-none focus:ring-1 focus:ring-zinc-900"
+                      className="w-full border border-zinc-200 rounded-xl py-2 px-3 text-sm focus:outline-none"
                     />
                   </div>
-                  <div>
-                    <label className="block text-xs font-bold text-zinc-700 uppercase tracking-wider mb-2">Start Time</label>
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-bold text-zinc-700 uppercase tracking-wider">Bride Name (EN)</label>
+                    <input
+                      type="text"
+                      name="bride"
+                      value={invitationData.bride}
+                      onChange={handleInputChange}
+                      className="w-full border border-zinc-200 rounded-xl py-2 px-3 text-sm focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                {/* Multilingual translations */}
+                <div className="border-t border-zinc-100 pt-4 space-y-4">
+                  <h4 className="text-xs font-bold uppercase tracking-widest text-brand-accent">Multi-Language translation (Hindi/Tamil)</h4>
+                  
+                  {/* Hindi translation */}
+                  <div className="bg-brand-bg-soft/20 p-4 border border-zinc-150 rounded-xl space-y-3">
+                    <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Hindi (HI)</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <input
+                        type="text"
+                        placeholder="वर का नाम (Groom)"
+                        value={invitationData.translations?.hi?.groom || ""}
+                        onChange={(e) => handleTranslationChange("hi", "groom", e.target.value)}
+                        className="w-full bg-white border border-zinc-200 rounded-xl py-2 px-3 text-xs focus:outline-none"
+                      />
+                      <input
+                        type="text"
+                        placeholder="वधू का नाम (Bride)"
+                        value={invitationData.translations?.hi?.bride || ""}
+                        onChange={(e) => handleTranslationChange("hi", "bride", e.target.value)}
+                        className="w-full bg-white border border-zinc-200 rounded-xl py-2 px-3 text-xs focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Tamil translation */}
+                  <div className="bg-brand-bg-soft/20 p-4 border border-zinc-150 rounded-xl space-y-3">
+                    <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Tamil (TA)</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <input
+                        type="text"
+                        placeholder="மணமகன் பெயர்"
+                        value={invitationData.translations?.ta?.groom || ""}
+                        onChange={(e) => handleTranslationChange("ta", "groom", e.target.value)}
+                        className="w-full bg-white border border-zinc-200 rounded-xl py-2 px-3 text-xs focus:outline-none"
+                      />
+                      <input
+                        type="text"
+                        placeholder="மணமகள் பெயர்"
+                        value={invitationData.translations?.ta?.bride || ""}
+                        onChange={(e) => handleTranslationChange("ta", "bride", e.target.value)}
+                        className="w-full bg-white border border-zinc-200 rounded-xl py-2 px-3 text-xs focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 border-t border-zinc-100 pt-4">
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-bold text-zinc-700 uppercase tracking-wider">Event Date</label>
+                    <input
+                      type="date"
+                      value={eventDate}
+                      onChange={(e) => setEventDate(e.target.value)}
+                      className="w-full border border-zinc-200 rounded-xl py-2 px-3 text-sm focus:outline-none"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-bold text-zinc-700 uppercase tracking-wider">Start Time</label>
                     <input
                       type="time"
                       name="time"
                       value={invitationData.time}
                       onChange={handleInputChange}
-                      className="w-full border border-zinc-200 rounded-xl py-2.5 px-3 text-sm focus:outline-none focus:ring-1 focus:ring-zinc-900"
+                      className="w-full border border-zinc-200 rounded-xl py-2 px-3 text-sm focus:outline-none"
                     />
                   </div>
                 </div>
-                <div>
-                  <label className="block text-xs font-bold text-zinc-700 uppercase tracking-wider mb-2">Venue Name</label>
+
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold text-zinc-700 uppercase tracking-wider">Venue Name</label>
                   <input
                     type="text"
                     name="venueName"
                     value={invitationData.venueName}
                     onChange={handleInputChange}
-                    className="w-full border border-zinc-200 rounded-xl py-2.5 px-3 text-sm focus:outline-none focus:ring-1 focus:ring-zinc-900"
+                    className="w-full border border-zinc-200 rounded-xl py-2.5 px-3 text-sm focus:outline-none"
                   />
                 </div>
-                <div>
-                  <label className="block text-xs font-bold text-zinc-700 uppercase tracking-wider mb-2">Venue Address</label>
+
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold text-zinc-700 uppercase tracking-wider">Venue Address</label>
                   <textarea
                     name="venueAddress"
                     value={invitationData.venueAddress}
                     onChange={handleInputChange}
                     rows="3"
-                    className="w-full border border-zinc-200 rounded-xl py-2.5 px-3 text-sm focus:outline-none focus:ring-1 focus:ring-zinc-900"
+                    className="w-full border border-zinc-200 rounded-xl py-2.5 px-3 text-sm focus:outline-none"
                   ></textarea>
                 </div>
               </div>
             )}
 
             {activeTab === "design" && (
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-zinc-700 uppercase tracking-wider mb-2">Theme Background Color</label>
-                  <div className="flex gap-3 items-center">
+              <div className="space-y-5">
+                {/* Active Template Swapping */}
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold text-zinc-700 uppercase tracking-wider">Active Design Template</label>
+                  <select
+                    value={dbTemplateId}
+                    onChange={(e) => setDbTemplateId(e.target.value)}
+                    className="w-full border border-zinc-200 bg-white rounded-xl py-2.5 px-3 text-sm focus:outline-none focus:ring-1 focus:ring-zinc-900"
+                  >
+                    <option value="">Select a template design</option>
+                    {templates.map((tpl) => (
+                      <option key={tpl.id} value={tpl.id}>
+                        {tpl.name} ({tpl.tier})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Subdomain config */}
+                <div className="space-y-1.5 border-t border-zinc-100 pt-4">
+                  <label className="block text-xs font-bold text-zinc-700 uppercase tracking-wider">Custom Subdomain</label>
+                  <div className="flex items-center">
                     <input
-                      type="color"
-                      name="bgColor"
-                      value={invitationData.bgColor}
-                      onChange={handleInputChange}
-                      className="w-10 h-10 border border-zinc-200 rounded-lg cursor-pointer"
+                      type="text"
+                      placeholder="e.g. rahul-priya"
+                      value={subdomain}
+                      onChange={(e) => setSubdomain(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
+                      className="flex-1 border border-r-0 border-zinc-200 rounded-l-xl py-2.5 px-3 text-sm focus:outline-none"
                     />
-                    <span className="text-zinc-600 text-sm font-medium">{invitationData.bgColor}</span>
+                    <span className="bg-zinc-50 border border-l-0 border-zinc-200 rounded-r-xl py-2.5 px-4 text-xs font-semibold text-zinc-500">
+                      .cardessa.in
+                    </span>
                   </div>
                 </div>
-                <div>
-                  <label className="block text-xs font-bold text-zinc-700 uppercase tracking-wider mb-2">Accent Brand Color</label>
-                  <div className="flex gap-3 items-center">
-                    <input
-                      type="color"
-                      name="primaryColor"
-                      value={invitationData.primaryColor}
-                      onChange={handleInputChange}
-                      className="w-10 h-10 border border-zinc-200 rounded-lg cursor-pointer"
-                    />
-                    <span className="text-zinc-600 text-sm font-medium">{invitationData.primaryColor}</span>
+
+                {/* Color customization */}
+                <div className="grid grid-cols-2 gap-4 border-t border-zinc-100 pt-4">
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-bold text-zinc-700 uppercase tracking-wider">Bg Color</label>
+                    <div className="flex gap-2.5 items-center">
+                      <input
+                        type="color"
+                        name="bgColor"
+                        value={invitationData.bgColor}
+                        onChange={handleInputChange}
+                        className="w-8 h-8 border border-zinc-200 rounded-lg cursor-pointer"
+                      />
+                      <span className="text-zinc-600 text-xs font-medium">{invitationData.bgColor}</span>
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-bold text-zinc-700 uppercase tracking-wider">Accent Color</label>
+                    <div className="flex gap-2.5 items-center">
+                      <input
+                        type="color"
+                        name="primaryColor"
+                        value={invitationData.primaryColor}
+                        onChange={handleInputChange}
+                        className="w-8 h-8 border border-zinc-200 rounded-lg cursor-pointer"
+                      />
+                      <span className="text-zinc-600 text-xs font-medium">{invitationData.primaryColor}</span>
+                    </div>
                   </div>
                 </div>
+
                 <div className="flex items-center justify-between border-t border-zinc-100 pt-4 mt-6">
                   <div>
                     <h4 className="font-bold text-zinc-900 text-sm">Background Music</h4>
@@ -311,6 +502,27 @@ export default function EditorPage() {
             {/* Phone Screen Scroll Container */}
             <div className="flex-1 overflow-y-auto relative flex flex-col" style={{ backgroundColor: invitationData.bgColor }}>
               
+              {/* Multilingual language switcher switcher inside phone preview */}
+              {isPreviewOpen && (
+                <div className="absolute top-4 left-4 z-20 flex bg-white/90 border border-zinc-200 rounded-full p-0.5 shadow-sm text-[9px] font-bold">
+                  {[
+                    { id: "en", label: "EN" },
+                    { id: "hi", label: "HI" },
+                    { id: "ta", label: "TA" }
+                  ].map((lang) => (
+                    <button
+                      key={lang.id}
+                      onClick={() => setPreviewLanguage(lang.id)}
+                      className={`px-2 py-0.5 rounded-full transition-colors ${
+                        previewLanguage === lang.id ? "bg-zinc-800 text-white" : "text-zinc-500 hover:text-zinc-800"
+                      }`}
+                    >
+                      {lang.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+
               {/* Monogram Cover screen (simulated live w/ exit animation) */}
               <AnimatePresence>
                 {!isPreviewOpen && (
@@ -328,9 +540,9 @@ export default function EditorPage() {
                     <div className="space-y-6">
                       <span className="text-[8px] font-bold uppercase tracking-widest text-zinc-400">Wedding Invitation</span>
                       <h2 className="font-serif text-3xl font-light text-zinc-800 leading-snug">
-                        {invitationData.groom} <br />
+                        {displayGroom} <br />
                         <span className="italic font-normal text-zinc-400">&amp;</span> <br />
-                        {invitationData.bride}
+                        {displayBride}
                       </h2>
                       <div className="flex flex-col items-center gap-2 pt-4">
                         <div
@@ -338,7 +550,7 @@ export default function EditorPage() {
                           style={{ backgroundColor: invitationData.primaryColor }}
                         >
                           <span className="font-serif text-base font-bold tracking-widest">
-                            {(invitationData.groom?.[0] || "") + (invitationData.bride?.[0] || "")}
+                            {displayInitials}
                           </span>
                         </div>
                         <span className="text-[7px] uppercase tracking-widest font-bold text-zinc-400 animate-pulse">Tap to Open</span>
@@ -365,9 +577,9 @@ export default function EditorPage() {
                 <div className="space-y-6 py-6 border-b border-zinc-200/50">
                   <span className="text-[8px] font-bold uppercase tracking-wider" style={{ color: invitationData.primaryColor }}>Save The Date</span>
                   <h3 className="font-serif text-4xl font-light text-zinc-800 leading-tight">
-                    {invitationData.groom} <br />
+                    {displayGroom} <br />
                     <span className="italic font-normal text-zinc-400">&amp;</span> <br />
-                    {invitationData.bride}
+                    {displayBride}
                   </h3>
                   <p className="text-zinc-400 text-[10px] italic max-w-44 mx-auto leading-relaxed">
                     invite you to celebrate their wedding ceremony
@@ -404,7 +616,7 @@ export default function EditorPage() {
                     <h5 className="font-serif text-xs font-semibold text-zinc-800">Wedding Ceremony</h5>
                     <p className="text-[10px] text-zinc-500">⏰ Time: {invitationData.time || "18:00 PM"}</p>
                     <p className="text-[10px] text-zinc-500">📍 Venue: {invitationData.venueName || "Grand Palace"}</p>
-                    <p className="text-[10px] text-zinc-500 max-w-44 truncate">🏢 Addr: {invitationData.venueAddress || "Mumbai, MH"}</p>
+                    <p className="text-[10px] text-zinc-500 max-w-44 truncate font-mono text-[9px]">{invitationData.venueAddress || "Mumbai, MH"}</p>
                   </div>
                 </div>
 
