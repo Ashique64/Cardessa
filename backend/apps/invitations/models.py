@@ -44,3 +44,34 @@ class Invitation(models.Model):
     def __str__(self):
         return f"Invitation {self.slug} by {self.user.email}"
 
+
+class RSVP(models.Model):
+    STATUS_CHOICES = [
+        ("attending", "Attending"),
+        ("declined", "Declined"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    invitation = models.ForeignKey(
+        Invitation,
+        on_delete=models.CASCADE,
+        related_name="rsvps",
+    )
+    guest_name = models.CharField(max_length=255)
+    email = models.EmailField(blank=True, null=True)
+    phone = models.CharField(max_length=20, blank=True, null=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="attending")
+    guest_count = models.PositiveIntegerField(default=1)
+    message = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "rsvps"
+        ordering = ["-created_at"]
+        verbose_name = "RSVP"
+        verbose_name_plural = "RSVPs"
+
+    def __str__(self):
+        return f"{self.guest_name} — {self.status}"
+
+

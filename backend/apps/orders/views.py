@@ -131,3 +131,15 @@ class PaymentWebhookView(APIView):
             ).update(status="paid", razorpay_payment_id=rz_payment_id)
 
         return Response({"status": "ok"})
+
+
+class UserHasPlanView(APIView):
+    """GET /api/orders/check-plan/ — Check if the authenticated user has at least one active (paid) order."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        if request.user.is_superuser or request.user.is_staff:
+            return Response({"has_plan": True})
+        has_plan = Order.objects.filter(user=request.user, status="paid").exists()
+        return Response({"has_plan": has_plan})
+

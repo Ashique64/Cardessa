@@ -2,9 +2,12 @@
 
 import React, { useState, useRef } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import { useAuth } from "@/context/AuthContext";
+import { ordersApi } from "@/lib/api";
 
 export default function TemplatesPage() {
   const templates = [
@@ -106,10 +109,39 @@ export default function TemplatesPage() {
     }
   ];
 
+  const router = useRouter();
+  const { user } = useAuth();
+  const [loadingSlug, setLoadingSlug] = useState(null);
+
   const [activeTab, setActiveTab] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
   const gridRef = useRef(null);
+
+  const handleUseDesign = async (slug) => {
+    if (!user) {
+      router.push(`/login`);
+      return;
+    }
+    if (user.is_superuser || user.is_staff) {
+      router.push(`/editor/${slug}`);
+      return;
+    }
+    setLoadingSlug(slug);
+    try {
+      const res = await ordersApi.checkPlan();
+      if (res.data.has_plan) {
+        router.push(`/editor/${slug}`);
+      } else {
+        router.push("/pricing");
+      }
+    } catch {
+      router.push("/pricing");
+    } finally {
+      setLoadingSlug(null);
+    }
+  };
+
 
   const handleTabChange = (tabId) => {
     setActiveTab(tabId);
@@ -240,12 +272,13 @@ export default function TemplatesPage() {
                   >
                     Live Preview
                   </Link>
-                  <Link
-                    href={`/editor/${tpl.slug}`}
-                    className="flex-1 text-center bg-brand-bg-soft hover:bg-brand-dark text-brand-dark hover:text-brand-bg font-bold py-3 px-4 rounded-lg text-xs uppercase tracking-wider transition-colors duration-300 border border-brand-border/60"
+                  <button
+                    onClick={() => handleUseDesign(tpl.slug)}
+                    disabled={loadingSlug !== null}
+                    className="flex-1 text-center bg-brand-bg-soft hover:bg-brand-dark text-brand-dark hover:text-brand-bg font-bold py-3 px-4 rounded-lg text-xs uppercase tracking-wider transition-colors duration-300 border border-brand-border/60 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Use Design
-                  </Link>
+                    {loadingSlug === tpl.slug ? "Checking Plan..." : "Use Design"}
+                  </button>
                 </div>
               </motion.div>
             ))}

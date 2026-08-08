@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
 
 const fadeUp = {
@@ -19,6 +19,7 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showAdminChoice, setShowAdminChoice] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -33,6 +34,15 @@ export default function LoginPage() {
       // Use AuthContext.login() — this calls the API AND calls setUser()
       // so the Navbar immediately reflects the logged-in state
       await login(formData.email, formData.password);
+      const stored = localStorage.getItem("auth_user");
+      if (stored) {
+        const u = JSON.parse(stored);
+        if (u.is_superuser || u.is_staff) {
+          setShowAdminChoice(true);
+          setLoading(false);
+          return;
+        }
+      }
       router.push("/");
     } catch (err) {
       const rawMsg = err?.response?.data
@@ -256,6 +266,59 @@ export default function LoginPage() {
           </p>
         </motion.div>
       </div>
+
+      <AnimatePresence>
+        {showAdminChoice && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-brand-dark/70 backdrop-blur-xs"
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 16 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 16 }}
+              transition={{ duration: 0.35, ease: "easeOut" }}
+              className="bg-white max-w-sm w-full border border-brand-border/60 rounded-3xl p-8 shadow-2xl text-center space-y-6 relative overflow-hidden"
+            >
+              {/* Botanical ornament */}
+              <div className="absolute -top-12 -left-12 h-24 w-24 rounded-full border border-brand-accent/10 pointer-events-none" />
+
+              <div className="space-y-2">
+                <span className="text-[9px] font-bold uppercase tracking-widest text-brand-accent">Administrator Session</span>
+                <h3 className="font-serif text-2xl font-light text-brand-dark leading-snug">
+                  Choose Your <span className="italic font-normal">Workspace</span>
+                </h3>
+                <p className="text-xs text-brand-text-muted leading-relaxed">
+                  You have logged in with administrative privileges. Please select where you want to proceed.
+                </p>
+              </div>
+
+              <div className="space-y-3 pt-2">
+                <button
+                  onClick={() => {
+                    setShowAdminChoice(false);
+                    router.push("/admin");
+                  }}
+                  className="w-full bg-brand-dark hover:bg-brand-accent text-brand-bg hover:text-white font-bold py-3.5 rounded-xl text-xs uppercase tracking-widest transition-colors duration-300 shadow-sm cursor-pointer"
+                >
+                  Admin Console
+                </button>
+                <button
+                  onClick={() => {
+                    setShowAdminChoice(false);
+                    router.push("/");
+                  }}
+                  className="w-full bg-brand-bg-soft hover:bg-brand-dark text-brand-dark hover:text-brand-bg font-bold py-3.5 rounded-xl text-xs uppercase tracking-widest transition-colors duration-300 border border-brand-border/60 cursor-pointer"
+                >
+                  User Site
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

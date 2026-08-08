@@ -110,6 +110,7 @@ export const ordersApi = {
   plans: () => apiClient.get("/orders/plans/"),
   create: (planId) => apiClient.post("/orders/create/", { plan_id: planId }),
   verify: (data) => apiClient.post("/orders/verify/", data),
+  checkPlan: () => apiClient.get("/orders/check-plan/"),
 };
 
 export const mediaApi = {

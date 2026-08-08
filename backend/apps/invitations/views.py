@@ -1,8 +1,8 @@
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.exceptions import PermissionDenied, NotFound
-from .models import Invitation
-from .serializers import InvitationSerializer, InvitationPublicSerializer
+from .models import Invitation, RSVP
+from .serializers import InvitationSerializer, InvitationPublicSerializer, RSVPSerializer
 
 
 class InvitationListCreateView(generics.ListCreateAPIView):
@@ -70,5 +70,23 @@ class InvitationDetailView(generics.RetrieveUpdateDestroyAPIView):
             raise PermissionDenied("You are not the owner of this invitation.")
         
         return invitation
+
+
+class RSVPCreateView(generics.CreateAPIView):
+    """
+    POST /api/invitations/<slug>/rsvp/
+    Public endpoint to let guests RSVP to an invitation.
+    """
+    serializer_class = RSVPSerializer
+    permission_classes = [permissions.AllowAny]
+
+    def perform_create(self, serializer):
+        slug = self.kwargs.get("slug")
+        try:
+            invitation = Invitation.objects.get(slug=slug)
+        except Invitation.DoesNotExist:
+            raise NotFound("Invitation not found.")
+        serializer.save(invitation=invitation)
+
 
 

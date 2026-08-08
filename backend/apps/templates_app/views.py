@@ -29,3 +29,16 @@ class TemplateDetailView(generics.RetrieveAPIView):
     permission_classes = [permissions.AllowAny]
     queryset = Template.objects.filter(is_active=True)
     lookup_field = "slug"
+
+
+from rest_framework import viewsets
+
+class AdminTemplateViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for superusers/staff to perform CRUD operations on templates.
+    """
+    queryset = Template.objects.all()
+    serializer_class = TemplateDetailSerializer
+    permission_classes = [permissions.IsAdminUser]
+    lookup_field = "slug"
+

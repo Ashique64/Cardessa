@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Invitation
+from .models import Invitation, RSVP
 
 
 class InvitationSerializer(serializers.ModelSerializer):
@@ -32,3 +32,11 @@ class InvitationPublicSerializer(serializers.ModelSerializer):
             "config", "event_date", "is_published",
         ]
 
+class RSVPSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = RSVP
+        fields = [
+            "id", "guest_name", "email", "phone", "status",
+            "guest_count", "message", "created_at",
+        ]
+        read_only_fields = ["id", "created_at"]
