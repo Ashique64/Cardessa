@@ -78,6 +78,7 @@ export default function Footer() {
             <form onSubmit={(e) => e.preventDefault()} className="flex gap-2">
               <input
                 type="email"
+                suppressHydrationWarning
                 placeholder="Your email address"
                 className="bg-brand-bg-soft/10 border border-brand-border/10 rounded-lg px-4 py-2.5 text-xs text-brand-bg w-full focus:outline-none focus:border-brand-accent/50 transition-colors duration-300 placeholder-brand-bg-soft/30"
               />

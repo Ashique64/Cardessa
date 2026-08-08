@@ -195,11 +195,7 @@ export default function TemplatesPage() {
                 initial={{ opacity: 0, y: 15 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -15 }}
-                whileHover={{
-                  y: -6,
-                  boxShadow: "0 12px 30px -10px rgba(95, 125, 103, 0.12)",
-                  borderColor: "rgba(95, 125, 103, 0.4)"
-                }}
+                whileHover={{ y: -6 }}
                 transition={{
                   type: "spring",
                   stiffness: 280,
@@ -207,7 +203,7 @@ export default function TemplatesPage() {
                   layout: { duration: 0.35, type: "tween", ease: "easeInOut" }
                 }}
                 key={tpl.slug}
-                className="bg-brand-bg rounded-2xl border border-brand-border/60 p-8 flex flex-col justify-between shadow-2xs"
+                className="bg-brand-bg rounded-2xl border border-brand-border/60 p-8 flex flex-col justify-between shadow-2xs hover:border-brand-accent/40 hover:shadow-[0_12px_30px_-10px_rgba(95,125,103,0.12)] transition-[border-color,box-shadow] duration-300"
               >
                 <div>
                   <div className="flex items-center justify-between mb-6">
