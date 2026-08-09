@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -14,12 +14,22 @@ const fadeUp = {
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login } = useAuth();
+  const { user, login, isLoading: authLoading } = useAuth();
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showAdminChoice, setShowAdminChoice] = useState(false);
+
+  useEffect(() => {
+    if (!authLoading && user) {
+      if (user.is_superuser || user.is_staff) {
+        setShowAdminChoice(true);
+        return;
+      }
+      router.push("/");
+    }
+  }, [user, authLoading, router]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

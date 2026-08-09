@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-
+import { useAuth } from "@/context/AuthContext";
 const fadeUp = {
   initial: { opacity: 0, y: 20 },
   animate: { opacity: 1, y: 0 },
@@ -13,11 +13,18 @@ const fadeUp = {
 
 export default function RegisterPage() {
   const router = useRouter();
+  const { user, isLoading: authLoading } = useAuth();
   const [formData, setFormData] = useState({ name: "", email: "", password: "", confirmPassword: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+
+  useEffect(() => {
+    if (!authLoading && user) {
+      router.push("/");
+    }
+  }, [user, authLoading, router]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

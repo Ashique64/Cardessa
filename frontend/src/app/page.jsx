@@ -3,6 +3,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
@@ -10,9 +12,12 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 
 export default function Home() {
+  const router = useRouter();
+  const { user } = useAuth();
   const [isPlaying, setIsPlaying] = useState(false);
   const [rsvpStatus, setRsvpStatus] = useState(null); // 'yes' | 'no' | null
   const [showRsvpDialog, setShowRsvpDialog] = useState(false);
+  const [showAuthMessageModal, setShowAuthMessageModal] = useState(false);
   const heroRef = useRef(null);
 
   useEffect(() => {
@@ -123,6 +128,15 @@ export default function Home() {
 
     return () => ctx.revert();
   }, []);
+
+  const handleCreateInvitationClick = (e) => {
+    e.preventDefault();
+    if (user) {
+      setShowAuthMessageModal(true);
+    } else {
+      router.push("/login");
+    }
+  };
 
   return (
     <div ref={heroRef} className="min-h-screen bg-brand-bg text-brand-text font-sans overflow-x-hidden">
@@ -453,12 +467,12 @@ export default function Home() {
             Begin custom designing your digital invitation. Select a luxury theme, enter your event schedule, and launch in less than 10 minutes.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
-            <Link
-              href="/register"
-              className="w-full sm:w-auto bg-brand-accent border border-brand-accent hover:bg-transparent hover:text-brand-accent text-brand-dark font-bold py-4 px-10 rounded-lg text-xs uppercase tracking-widest transition-all duration-300 text-center"
+            <button
+              onClick={handleCreateInvitationClick}
+              className="w-full sm:w-auto bg-brand-accent border border-brand-accent hover:bg-transparent hover:text-brand-accent text-brand-dark font-bold py-4 px-10 rounded-lg text-xs uppercase tracking-widest transition-all duration-300 text-center cursor-pointer font-sans"
             >
               Create Your Invitation
-            </Link>
+            </button>
             <Link
               href="/templates"
               className="w-full sm:w-auto bg-transparent border border-brand-bg-soft/20 hover:bg-brand-bg-soft hover:text-brand-dark text-brand-bg font-bold py-4 px-10 rounded-lg text-xs uppercase tracking-widest transition-all duration-300 text-center"
@@ -470,6 +484,44 @@ export default function Home() {
       </section>
 
       <Footer />
+
+      <AnimatePresence>
+        {showAuthMessageModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-6">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-[#FCFAF6] border border-brand-accent/30 rounded-3xl max-w-sm w-full p-8 shadow-2xl space-y-6 text-center text-brand-dark"
+            >
+              <div className="flex flex-col items-center gap-3">
+                <div className="h-12 w-12 rounded-full bg-brand-accent/15 border border-brand-accent/20 flex items-center justify-center text-brand-accent text-lg">✨</div>
+                <h3 className="font-serif text-xl font-light">Active Session</h3>
+              </div>
+              <p className="text-xs text-brand-text-muted leading-relaxed">
+                You are already logged in to Cardessa! Head to your dashboard to manage your invitations or create a new design.
+              </p>
+              <div className="flex gap-3 justify-center pt-2">
+                <button
+                  onClick={() => setShowAuthMessageModal(false)}
+                  className="text-xs uppercase tracking-wider font-bold text-zinc-400 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    setShowAuthMessageModal(false);
+                    router.push("/dashboard");
+                  }}
+                  className="bg-brand-dark hover:bg-brand-accent text-white hover:text-brand-dark px-6 py-3 rounded-xl text-xs font-bold uppercase tracking-wider transition cursor-pointer"
+                >
+                  Go to Dashboard
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -28,6 +28,7 @@ urlpatterns = [
 
     # Cardessa API endpoints
     path("api/templates/", include("apps.templates_app.urls")),
+    path("api/categories/", __import__("apps.templates_app.views", fromlist=["CategoryListView"]).CategoryListView.as_view(), name="category-list"),
     path("api/invitations/", include("apps.invitations.urls")),
     path("api/orders/", include("apps.orders.urls")),
     path("api/media/", include("apps.media.urls")),

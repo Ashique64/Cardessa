@@ -22,9 +22,16 @@ class Invitation(models.Model):
         related_name="invitations",
     )
     slug = models.SlugField(unique=True, default=generate_slug, max_length=20)
-    # Full invitation content stored as JSON:
-    # { "couple": {...}, "event": {...}, "venue": {...}, "gallery": [...],
-    #   "music": {...}, "design": {...}, "translations": {...} }
+    # Phase 1.5: schema-driven content that matches template.field_schema keys.
+    # e.g. { "groom_name": "Rahul", "bride_name": "Priya", "event_date": "2025-02-14", ... }
+    # This is the single source of truth for all user customizations going forward.
+    content = models.JSONField(
+        default=dict,
+        help_text="User-supplied content keyed by the template's field_schema field keys.",
+    )
+
+    # Legacy: kept for backward compatibility — migrated to content via data migration.
+    # Do not write new data here; read from content instead.
     config = models.JSONField(default=dict)
     event_date = models.DateField(null=True, blank=True)
     is_published = models.BooleanField(default=False)

@@ -144,6 +144,42 @@ class UserHasPlanView(APIView):
         return Response({"has_plan": has_plan})
 
 
+class UserFeaturesView(APIView):
+    """
+    GET /api/orders/features/
+    Returns combined active feature flags for the authenticated user based on active orders.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        if request.user.is_superuser or request.user.is_staff:
+            return Response({
+                "white_label": True,
+                "custom_domain": True,
+                "ai_assistant": True,
+                "multi_client": True,
+                "max_invitations": 9999
+            })
+
+        paid_orders = Order.objects.filter(user=request.user, status="paid")
+        features = {
+            "white_label": False,
+            "custom_domain": False,
+            "ai_assistant": False,
+            "multi_client": False,
+            "max_invitations": 1
+        }
+        for o in paid_orders:
+            snap = o.features_snapshot or {}
+            for k, v in snap.items():
+                if isinstance(v, bool):
+                    features[k] = features.get(k, False) or v
+                elif isinstance(v, int):
+                    features[k] = max(features.get(k, 0), v)
+
+        return Response(features)
+
+
 from django.contrib.auth import get_user_model
 from apps.templates_app.models import Template
 from apps.invitations.models import Invitation

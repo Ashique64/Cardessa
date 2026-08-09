@@ -125,5 +125,88 @@ class InvitationRSVPListView(generics.ListCreateAPIView):
         serializer.save(invitation=invitation)
 
 
+class ResolveCustomDomainView(generics.RetrieveAPIView):
+    """
+    GET /api/invitations/resolve-domain/?domain=<domain>
+    Public endpoint to retrieve invitation details based on custom domain or custom subdomain.
+    """
+    serializer_class = InvitationPublicSerializer
+    permission_classes = [permissions.AllowAny]
+
+    def get_object(self):
+        domain = self.request.query_params.get("domain", "").strip().lower()
+        if not domain:
+            raise NotFound("Missing domain parameter.")
+
+        # 1. Direct lookup by custom_domain (e.g., invite.couple.com)
+        try:
+            return Invitation.objects.get(custom_domain=domain, is_published=True)
+        except Invitation.DoesNotExist:
+            pass
+
+        # 2. Lookup by custom_subdomain (e.g., rahul-priya.cardessa.in or rahul-priya.localhost)
+        subdomain = domain
+        for suffix in [".cardessa.in", ".localhost", "localhost"]:
+            if domain.endswith(suffix):
+                subdomain = domain[:-len(suffix)].rstrip(".")
+                break
+
+        try:
+            return Invitation.objects.get(custom_subdomain=subdomain, is_published=True)
+        except Invitation.DoesNotExist:
+            raise NotFound(f"No invitation found for domain '{domain}'.")
+
+
+from rest_framework.views import APIView
+
+class AICopyGeneratorView(APIView):
+    """
+    POST /api/invitations/ai-write/
+    Generates 3 variations of invitation copy templates based on tone, couple names, and key details.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        from apps.orders.models import Order
+        is_admin = request.user.is_superuser or request.user.is_staff
+        has_ai = Order.objects.filter(
+            user=request.user,
+            status="paid",
+            features_snapshot__ai_assistant=True
+        ).exists()
+
+        if not is_admin and not has_ai:
+            return Response(
+                {"error": "AI Assistant is only available on premium subscription tiers."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        tone = request.data.get("tone", "romantic").lower()
+        groom = request.data.get("groom_name", "Groom").strip()
+        bride = request.data.get("bride_name", "Bride").strip()
+        details = request.data.get("details", "").strip()
+
+        if tone == "formal":
+            v1 = f"Together with their families, {groom} and {bride} request the honor of your presence as they exchange wedding vows. Join us to celebrate their union at {details or 'the ceremony'}."
+            v2 = f"Mr. & Mrs. request the pleasure of your company at the marriage ceremony of their beloved children {bride} and {groom}. Your presence is highly appreciated at {details or 'the auspicious occasion'}."
+            v3 = f"We invite you to share in our joy and support us as we, {groom} and {bride}, begin our life journey together. The wedding ceremony will be held at {details or 'the venue'}."
+        elif tone == "romantic":
+            v1 = f"Two hearts, one love, a lifetime to share. {groom} & {bride} invite you to witness the beginning of their happily ever after. Let's celebrate our love story at {details or 'our wedding'}."
+            v2 = f"Once in a while, in the middle of an ordinary life, love gives us a fairy tale. Join us as {bride} and {groom} say 'I do' and walk hand-in-hand into forever at {details or 'our celebration'}."
+            v3 = f"Love has brought us together, and we want to celebrate this beautiful blessing with our nearest and dearest. Come celebrate {groom} and {bride}'s big day at {details or 'the wedding site'}."
+        elif tone == "religious":
+            v1 = f"By the grace of the Almighty, we invite you to bless the holy union of {groom} and {bride} as they bind their souls in marriage. May your blessings guide them at {details or 'the holy union'}."
+            v2 = f"With divine blessings, {bride} & {groom} start their blessed journey of marital bliss. We request your presence and prayers on this sacred day at {details or 'the ceremony'}."
+            v3 = f"Love is a gift of the Divine. We invite you to join us in prayer and celebration as {groom} & {bride} are united in holy matrimony at {details or 'the wedding sanctuary'}."
+        else:
+            v1 = f"No rules, no stress, just love and celebration! {groom} and {bride} are getting married, and we want you there. Join the party at {details or 'the venue'}!"
+            v2 = f"We're making it official! {bride} & {groom} are tying the knot. Grab your dancing shoes and join us for an unforgettable celebration at {details or 'our wedding day'}."
+            v3 = f"Finally! {groom} & {bride} are getting hitched. Come for the love, stay for the food and drinks. Celebrations kick off at {details or 'the venue'}."
+
+        return Response({
+            "variations": [v1, v2, v3]
+        }, status=status.HTTP_200_OK)
+
+
 
 

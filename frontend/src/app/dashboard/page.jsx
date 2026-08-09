@@ -75,29 +75,22 @@ function RsvpManagerModal({ slug, onClose }) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
-  // Form states for manual RSVP entry
   const [showAddForm, setShowAddForm] = useState(false);
   const [newGuest, setNewGuest] = useState({
-    guest_name: "",
-    email: "",
-    phone: "",
-    status: "attending",
-    guest_count: 1,
-    message: ""
+    guest_name: "", email: "", phone: "",
+    status: "attending", guest_count: 1, message: ""
   });
   const [addLoading, setAddLoading] = useState(false);
 
-  const fetchGuests = async () => {
+  const fetchRSVPs = async () => {
     setLoading(true);
     try {
       const token = localStorage.getItem("access_token");
-      let url = `${process.env.NEXT_PUBLIC_API_URL}/invitations/${slug}/rsvps/`;
-      const params = [];
-      if (search) params.push(`search=${encodeURIComponent(search)}`);
-      if (statusFilter !== "all") params.push(`status=${statusFilter}`);
-      if (params.length > 0) url += `?${params.join("&")}`;
+      const url = new URL(`${process.env.NEXT_PUBLIC_API_URL}/invitations/${slug}/rsvps/`);
+      if (search) url.searchParams.set("search", search);
+      if (statusFilter !== "all") url.searchParams.set("status", statusFilter);
 
-      const res = await fetch(url, {
+      const res = await fetch(url.toString(), {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) {
@@ -105,14 +98,14 @@ function RsvpManagerModal({ slug, onClose }) {
         setGuests(Array.isArray(data) ? data : data.results ?? []);
       }
     } catch {
-      alert("Failed to load guests list.");
+      // ignore
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchGuests();
+    fetchRSVPs();
   }, [slug, search, statusFilter]);
 
   const handleAddGuest = async (e) => {
@@ -129,223 +122,122 @@ function RsvpManagerModal({ slug, onClose }) {
         body: JSON.stringify(newGuest)
       });
       if (res.ok) {
-        setNewGuest({
-          guest_name: "",
-          email: "",
-          phone: "",
-          status: "attending",
-          guest_count: 1,
-          message: ""
-        });
         setShowAddForm(false);
-        fetchGuests();
-      } else {
-        alert("Failed to add guest offline.");
+        setNewGuest({ guest_name: "", email: "", phone: "", status: "attending", guest_count: 1, message: "" });
+        fetchRSVPs();
       }
     } catch {
-      alert("Error adding guest offline.");
+      alert("Error adding guest.");
     } finally {
       setAddLoading(false);
     }
   };
 
-  const exportCSV = () => {
-    if (guests.length === 0) {
-      alert("No guests to export.");
-      return;
-    }
-    const headers = ["Guest Name", "Email", "Phone", "Status", "Guest Count", "Message", "Response Date"];
-    const rows = guests.map((g) => [
-      g.guest_name,
-      g.email || "",
-      g.phone || "",
-      g.status,
-      g.guest_count,
-      (g.message || "").replace(/,/g, " "),
-      g.created_at ? new Date(g.created_at).toLocaleDateString() : ""
-    ]);
+  const handleExportCSV = () => {
+    if (guests.length === 0) return;
+    const headers = "Guest Name,Status,Count,Email,Phone,Message\n";
+    const rows = guests.map(g => (
+      `"${g.guest_name}","${g.status}",${g.guest_count},"${g.email || ''}","${g.phone || ''}","${g.message || ''}"`
+    )).join("\n");
 
-    const csvContent = "data:text/csv;charset=utf-8," 
-      + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
-
-    const encodedUri = encodeURI(csvContent);
+    const blob = new Blob([headers + rows], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `rsvps_${slug}.csv`);
+    link.href = URL.createObjectURL(blob);
+    link.setAttribute("download", `RSVP_GuestList_${slug}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
-  // Metrics
-  const attendingGuests = guests.filter((g) => g.status === "attending");
-  const totalAttendingCount = attendingGuests.reduce((acc, curr) => acc + (curr.guest_count || 1), 0);
+  const totalCount = guests.reduce((acc, g) => acc + g.guest_count, 0);
 
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-brand-dark/70 backdrop-blur-xs font-sans"
+      className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-6 z-50 font-sans"
     >
       <motion.div
-        initial={{ opacity: 0, scale: 0.96, y: 20 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.96, y: 20 }}
-        transition={{ duration: 0.4 }}
-        className="bg-brand-bg w-full max-w-4xl h-[85vh] rounded-[32px] border border-brand-border/60 shadow-2xl flex flex-col overflow-hidden"
+        initial={{ scale: 0.96 }}
+        animate={{ scale: 1 }}
+        exit={{ scale: 0.96 }}
+        className="bg-brand-bg w-full max-w-2xl rounded-3xl p-8 shadow-2xl flex flex-col max-h-[85vh] overflow-hidden space-y-6"
       >
-        {/* Header */}
-        <header className="p-8 border-b border-brand-border/40 flex justify-between items-center bg-white">
-          <div className="space-y-1">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-brand-accent">RSVP Manager</span>
-            <h3 className="font-serif text-2xl font-light text-brand-dark tracking-tight">Guest List &amp; Responses</h3>
+        <div className="flex justify-between items-center border-b border-brand-border/40 pb-4 shrink-0">
+          <div>
+            <h2 className="font-serif text-2xl font-light text-brand-dark">Guest RSVP List</h2>
+            <p className="text-xs text-brand-text-muted mt-1">Total attending guests: {totalCount}</p>
           </div>
-          <button
-            onClick={onClose}
-            className="h-9 w-9 rounded-full bg-brand-bg-soft border border-brand-border/60 hover:bg-brand-dark hover:text-white transition flex items-center justify-center text-sm font-bold cursor-pointer"
-          >
-            ✕
+          <button onClick={onClose} className="text-brand-dark/70 hover:text-brand-dark text-xs uppercase tracking-widest font-bold cursor-pointer">
+            Close
           </button>
-        </header>
-
-        {/* Dashboard stats & Filters */}
-        <div className="p-8 bg-brand-bg-soft/20 border-b border-brand-border/30 grid grid-cols-1 md:grid-cols-4 gap-6 shrink-0">
-          <div className="bg-white border border-brand-border/50 p-4 rounded-xl space-y-1">
-            <p className="font-serif text-2xl font-light text-brand-dark">{guests.length}</p>
-            <p className="text-[9px] text-brand-text-muted font-bold uppercase tracking-widest">Total Responses</p>
-          </div>
-          <div className="bg-white border border-brand-border/50 p-4 rounded-xl space-y-1">
-            <p className="font-serif text-2xl font-light text-emerald-600">{attendingGuests.length}</p>
-            <p className="text-[9px] text-brand-text-muted font-bold uppercase tracking-widest">Accepted RSVPs</p>
-          </div>
-          <div className="bg-white border border-brand-border/50 p-4 rounded-xl space-y-1">
-            <p className="font-serif text-2xl font-light text-brand-accent">{totalAttendingCount}</p>
-            <p className="text-[9px] text-brand-text-muted font-bold uppercase tracking-widest">Total Guest Count</p>
-          </div>
-          <div className="flex items-center justify-end gap-3">
-            <button
-              onClick={() => setShowAddForm(true)}
-              className="bg-brand-bg-soft hover:bg-brand-dark hover:text-white text-brand-dark text-[10px] font-bold uppercase tracking-widest py-3 px-4 border border-brand-border/60 rounded-xl transition cursor-pointer"
-            >
-              Add Guest
-            </button>
-            <button
-              onClick={exportCSV}
-              className="bg-brand-dark hover:bg-brand-accent text-brand-bg text-[10px] font-bold uppercase tracking-widest py-3 px-4 rounded-xl transition cursor-pointer"
-            >
-              Export CSV
-            </button>
-          </div>
         </div>
 
-        {/* Search & Filters */}
-        <div className="px-8 py-4 border-b border-brand-border/20 flex gap-4 items-center shrink-0">
+        {/* Toolbar */}
+        <div className="flex flex-col sm:flex-row gap-3 shrink-0">
           <input
-            type="text"
-            placeholder="Search guest name…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="flex-1 bg-white border border-brand-border rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-brand-accent focus:ring-1 focus:ring-brand-accent/15"
+            type="text" placeholder="Search by name…"
+            value={search} onChange={(e) => setSearch(e.target.value)}
+            className="flex-1 bg-brand-bg-soft/40 border border-brand-border/60 rounded-xl px-4 py-2.5 text-xs focus:outline-none"
           />
           <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="bg-white border border-brand-border rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-brand-accent focus:ring-1 focus:ring-brand-accent/15 font-semibold text-brand-dark"
+            value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
+            className="bg-brand-bg border border-brand-border/60 rounded-xl px-4 py-2.5 text-xs focus:outline-none"
           >
-            <option value="all">All Statuses</option>
+            <option value="all">All RSVP statuses</option>
             <option value="attending">Attending</option>
             <option value="declined">Declined</option>
           </select>
+
+          <button
+            onClick={() => setShowAddForm(p => !p)}
+            className="bg-brand-bg-soft hover:bg-brand-dark text-brand-dark hover:text-brand-bg border border-brand-border/60 font-bold px-4 py-2.5 rounded-xl text-xs uppercase tracking-wider transition-colors cursor-pointer"
+          >
+            {showAddForm ? "View List" : "Add Offline Guest"}
+          </button>
+
+          <button
+            onClick={handleExportCSV}
+            className="bg-brand-dark hover:bg-brand-accent text-brand-bg font-bold px-4 py-2.5 rounded-xl text-xs uppercase tracking-wider transition-colors cursor-pointer"
+          >
+            Export CSV
+          </button>
         </div>
 
-        {/* Body content scroll area */}
-        <div className="flex-1 overflow-y-auto p-8 relative">
-          
-          {/* Add Guest offline form overlay */}
-          <AnimatePresence>
-            {showAddForm && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 10 }}
-                className="absolute inset-x-8 top-8 bg-white border border-brand-border/60 p-6 rounded-2xl shadow-lg z-20 space-y-4"
-              >
-                <div className="flex justify-between items-center border-b border-zinc-150 pb-2">
-                  <h4 className="font-serif text-sm font-semibold text-brand-dark">Manually Add Guest</h4>
-                  <button onClick={() => setShowAddForm(false)} className="text-zinc-400 hover:text-zinc-650 text-xs">Cancel</button>
-                </div>
-                <form onSubmit={handleAddGuest} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <input
-                    type="text"
-                    required
-                    placeholder="Guest Name"
-                    value={newGuest.guest_name}
-                    onChange={(e) => setNewGuest({ ...newGuest, guest_name: e.target.value })}
-                    className="w-full border border-brand-border rounded-xl px-3 py-2 text-xs focus:outline-none"
-                  />
-                  <input
-                    type="email"
-                    placeholder="Email (Optional)"
-                    value={newGuest.email}
-                    onChange={(e) => setNewGuest({ ...newGuest, email: e.target.value })}
-                    className="w-full border border-brand-border rounded-xl px-3 py-2 text-xs focus:outline-none"
-                  />
-                  <input
-                    type="tel"
-                    placeholder="Phone (Optional)"
-                    value={newGuest.phone}
-                    onChange={(e) => setNewGuest({ ...newGuest, phone: e.target.value })}
-                    className="w-full border border-brand-border rounded-xl px-3 py-2 text-xs focus:outline-none"
-                  />
-                  <div className="grid grid-cols-2 gap-3">
-                    <select
-                      value={newGuest.status}
-                      onChange={(e) => setNewGuest({ ...newGuest, status: e.target.value })}
-                      className="w-full border border-brand-border rounded-xl px-3 py-2 text-xs focus:outline-none"
-                    >
-                      <option value="attending">Attending</option>
-                      <option value="declined">Declined</option>
-                    </select>
-                    <input
-                      type="number"
-                      min="1"
-                      max="10"
-                      value={newGuest.guest_count}
-                      onChange={(e) => setNewGuest({ ...newGuest, guest_count: parseInt(e.target.value) || 1 })}
-                      className="w-full border border-brand-border rounded-xl px-3 py-2 text-xs focus:outline-none"
-                    />
-                  </div>
-                  <div className="md:col-span-2">
-                    <input
-                      type="text"
-                      placeholder="Custom wish message…"
-                      value={newGuest.message}
-                      onChange={(e) => setNewGuest({ ...newGuest, message: e.target.value })}
-                      className="w-full border border-brand-border rounded-xl px-3 py-2 text-xs focus:outline-none"
-                    />
-                  </div>
-                  <button
-                    type="submit"
-                    disabled={addLoading}
-                    className="md:col-span-2 bg-brand-dark hover:bg-brand-accent text-brand-bg text-xs font-bold uppercase tracking-wider py-3 rounded-xl transition"
-                  >
-                    {addLoading ? "Saving…" : "Save Guest Response"}
-                  </button>
-                </form>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {loading ? (
-            <div className="flex items-center justify-center py-20 gap-3">
-              <div className="animate-spin h-5 w-5 border-4 border-brand-accent border-t-transparent rounded-full" />
-              <span className="text-xs text-brand-text-muted">Loading responses…</span>
+        {/* Guest Add Form */}
+        <div className="flex-1 overflow-y-auto">
+          {showAddForm ? (
+            <form onSubmit={handleAddGuest} className="space-y-4 max-w-md mx-auto pt-4">
+              <h3 className="font-serif text-lg text-brand-dark">Manual Entry</h3>
+              <input
+                type="text" required placeholder="Guest Name"
+                value={newGuest.guest_name} onChange={(e) => setNewGuest({ ...newGuest, guest_name: e.target.value })}
+                className="w-full bg-brand-bg border border-brand-border/60 rounded-xl px-4 py-3 text-xs focus:outline-none"
+              />
+              <div className="grid grid-cols-2 gap-3">
+                <input type="email" placeholder="Email" value={newGuest.email} onChange={(e) => setNewGuest({ ...newGuest, email: e.target.value })} className="w-full bg-brand-bg border border-brand-border/60 rounded-xl px-4 py-3 text-xs" />
+                <input type="tel" placeholder="Phone" value={newGuest.phone} onChange={(e) => setNewGuest({ ...newGuest, phone: e.target.value })} className="w-full bg-brand-bg border border-brand-border/60 rounded-xl px-4 py-3 text-xs" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <select value={newGuest.status} onChange={(e) => setNewGuest({ ...newGuest, status: e.target.value })} className="w-full bg-brand-bg border border-brand-border/60 rounded-xl px-4 py-3 text-xs">
+                  <option value="attending">Attending</option>
+                  <option value="declined">Declined</option>
+                </select>
+                <input type="number" min="1" value={newGuest.guest_count} onChange={(e) => setNewGuest({ ...newGuest, guest_count: parseInt(e.target.value) || 1 })} className="w-full bg-brand-bg border border-brand-border/60 rounded-xl px-4 py-3 text-xs" />
+              </div>
+              <textarea placeholder="Wishes/comments" value={newGuest.message} onChange={(e) => setNewGuest({ ...newGuest, message: e.target.value })} rows="3" className="w-full bg-brand-bg border border-brand-border/60 rounded-xl px-4 py-3 text-xs resize-none" />
+              <button type="submit" disabled={addLoading} className="w-full bg-brand-dark text-white font-bold py-3.5 rounded-xl text-xs uppercase tracking-wider cursor-pointer">
+                {addLoading ? "Adding…" : "Save Guest Entry"}
+              </button>
+            </form>
+          ) : loading ? (
+            <div className="flex justify-center items-center py-20 gap-2.5">
+              <div className="h-5 w-5 border-2 border-brand-accent border-t-transparent rounded-full animate-spin" />
+              <span className="text-xs text-brand-text-muted">Loading list…</span>
             </div>
           ) : guests.length === 0 ? (
-            <div className="text-center py-20 text-brand-text-muted italic text-xs">
-              No responses found matching current filters.
-            </div>
+            <p className="text-center py-20 text-xs text-brand-text-muted italic">No guest responses match current query.</p>
           ) : (
             <div className="overflow-x-auto bg-white border border-brand-border/40 rounded-2xl">
               <table className="w-full text-left border-collapse">
@@ -390,11 +282,22 @@ function RsvpManagerModal({ slug, onClose }) {
   );
 }
 
+// ─── Main Dashboard Page ─────────────────────────────────────────────────────
 export default function DashboardPage() {
   const { user } = useAuth();
   const [invitations, setInvitations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedInviteSlug, setSelectedInviteSlug] = useState(null);
+
+  // Agency client folder states
+  const [features, setFeatures] = useState({
+    multi_client: false
+  });
+  const [folders, setFolders] = useState(["All"]);
+  const [activeFolder, setActiveFolder] = useState("All");
+  const [newFolderName, setNewFolderName] = useState("");
+  const [showFolderModal, setShowFolderModal] = useState(false);
+  const [invitationFolderMap, setInvitationFolderMap] = useState({});
 
   useEffect(() => {
     const fetchInvitations = async () => {
@@ -402,6 +305,8 @@ export default function DashboardPage() {
       try {
         const token = localStorage.getItem("access_token");
         if (!token) { setLoading(false); return; }
+        
+        // Fetch invitations
         const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/invitations/`, {
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -409,14 +314,57 @@ export default function DashboardPage() {
           const data = await res.json();
           setInvitations(Array.isArray(data) ? data : data.results ?? []);
         }
+
+        // Fetch plan features
+        const featRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/orders/features/`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (featRes.ok) {
+          const feats = await featRes.json();
+          setFeatures(feats);
+        }
       } catch {
-        // silently fail — empty state will show
+        // fail silently
       } finally {
         setLoading(false);
       }
     };
     fetchInvitations();
+
+    // Load folder config from local storage if available
+    try {
+      const savedFolders = JSON.parse(localStorage.getItem("cardessa_folders") || '["All"]');
+      const savedMap = JSON.parse(localStorage.getItem("cardessa_folder_map") || "{}");
+      setFolders(savedFolders);
+      setInvitationFolderMap(savedMap);
+    } catch {
+      // fail silently
+    }
   }, []);
+
+  const handleAddFolder = (e) => {
+    e.preventDefault();
+    if (!newFolderName.trim()) return;
+    const name = newFolderName.trim();
+    if (!folders.includes(name)) {
+      const updated = [...folders, name];
+      setFolders(updated);
+      localStorage.setItem("cardessa_folders", JSON.stringify(updated));
+    }
+    setNewFolderName("");
+    setShowFolderModal(false);
+  };
+
+  const handleMoveToFolder = (invId, folderName) => {
+    const updatedMap = { ...invitationFolderMap, [invId]: folderName };
+    setInvitationFolderMap(updatedMap);
+    localStorage.setItem("cardessa_folder_map", JSON.stringify(updatedMap));
+  };
+
+  const filteredInvitations = invitations.filter((inv) => {
+    if (activeFolder === "All") return true;
+    return invitationFolderMap[inv.id] === activeFolder;
+  });
 
   const firstName = user?.name?.split(" ")[0] ?? "there";
 
@@ -473,6 +421,36 @@ export default function DashboardPage() {
           </motion.div>
         )}
 
+        {/* ── Agency Multi-Client folders row ── */}
+        {features.multi_client && !loading && (
+          <div className="mb-6 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-[#6B8E70]">Client Folders (Planner Mode)</span>
+              <button
+                onClick={() => setShowFolderModal(true)}
+                className="text-xs text-[#6B8E70] font-semibold hover:underline"
+              >
+                + Add Client Folder
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {folders.map((folder) => (
+                <button
+                  key={folder}
+                  onClick={() => setActiveFolder(folder)}
+                  className={`px-4 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+                    activeFolder === folder
+                      ? "bg-brand-dark border-brand-dark text-white"
+                      : "bg-white border-brand-border/60 text-brand-dark hover:border-brand-accent"
+                  }`}
+                >
+                  {folder === "All" ? "📂 All Clients" : `📁 ${folder}`}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Invitations List */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
@@ -488,12 +466,13 @@ export default function DashboardPage() {
               </svg>
               <span className="text-xs text-brand-text-muted font-medium tracking-wide">Loading invitations…</span>
             </div>
-          ) : invitations.length === 0 ? (
+          ) : filteredInvitations.length === 0 ? (
             <EmptyState />
           ) : (
             <ul className="divide-y divide-brand-border/40">
-              {invitations.map((item, idx) => {
+              {filteredInvitations.map((item, idx) => {
                 const plan = PLAN_LABELS[item.tier?.toLowerCase()] ?? PLAN_LABELS.classic;
+                const currentFolder = invitationFolderMap[item.id] || "Unassigned";
                 return (
                   <motion.li
                     key={item.id ?? idx}
@@ -503,7 +482,6 @@ export default function DashboardPage() {
                     className="group p-8 flex flex-col md:flex-row md:items-center justify-between gap-6 hover:bg-brand-bg-soft/30 transition-colors duration-300"
                   >
                     <div className="flex items-start gap-5">
-                      {/* Template thumbnail placeholder */}
                       <div className="hidden sm:flex h-12 w-12 rounded-xl bg-brand-bg-soft border border-brand-border/60 items-center justify-center shrink-0">
                         <svg className="h-5 w-5 text-brand-accent/50" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
@@ -518,6 +496,13 @@ export default function DashboardPage() {
                           <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-widest ${plan.cls}`}>
                             {plan.label}
                           </span>
+
+                          {/* Client folder label indicator */}
+                          {features.multi_client && (
+                            <span className="text-[10px] bg-zinc-100 text-zinc-550 border border-zinc-200 px-2 py-0.5 rounded-md font-semibold">
+                              📁 {currentFolder}
+                            </span>
+                          )}
                         </div>
 
                         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-brand-text-muted">
@@ -535,6 +520,20 @@ export default function DashboardPage() {
                     </div>
 
                     <div className="flex flex-wrap items-center gap-3 shrink-0">
+                      {/* Move to folder dropdown selector for agency planner users */}
+                      {features.multi_client && (
+                        <select
+                          value={invitationFolderMap[item.id] || "All"}
+                          onChange={(e) => handleMoveToFolder(item.id, e.target.value)}
+                          className="bg-white border border-brand-border/65 text-zinc-650 px-2.5 py-2 rounded-xl text-xs focus:outline-none"
+                        >
+                          <option value="All">Unassigned Client</option>
+                          {folders.filter(f => f !== "All").map(f => (
+                            <option key={f} value={f}>Move to {f}</option>
+                          ))}
+                        </select>
+                      )}
+
                       <StatusPill status={item.status} />
 
                       <button
@@ -569,6 +568,36 @@ export default function DashboardPage() {
           )}
         </motion.div>
       </main>
+
+      {/* ── Folder Creation Dialog Modal ── */}
+      <AnimatePresence>
+        {showFolderModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-6">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.96 }}
+              className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl space-y-6"
+            >
+              <div>
+                <h3 className="font-serif text-xl text-brand-dark">Create Client Folder</h3>
+                <p className="text-xs text-brand-text-muted mt-1">Group and organize invitations by couple or event category.</p>
+              </div>
+              <form onSubmit={handleAddFolder} className="space-y-4">
+                <input
+                  type="text" required placeholder="Client / Folder Name"
+                  value={newFolderName} onChange={(e) => setNewFolderName(e.target.value)}
+                  className="w-full bg-zinc-50 border border-brand-border/60 rounded-xl px-4 py-3 text-xs focus:outline-none"
+                />
+                <div className="flex gap-3 justify-end pt-2">
+                  <button type="button" onClick={() => setShowFolderModal(false)} className="text-xs uppercase tracking-wider font-bold text-zinc-400 cursor-pointer">Cancel</button>
+                  <button type="submit" className="bg-brand-dark text-white px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider cursor-pointer">Create</button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {selectedInviteSlug && (

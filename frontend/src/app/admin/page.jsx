@@ -292,7 +292,7 @@ export default function AdminDashboard() {
                       <th className="p-5 text-[9px] uppercase tracking-widest font-bold text-brand-dark/75">Plan Purchased</th>
                       <th className="p-5 text-[9px] uppercase tracking-widest font-bold text-brand-dark/75">Amount Paid</th>
                       <th className="p-5 text-[9px] uppercase tracking-widest font-bold text-brand-dark/75">Razorpay Order / Payment ID</th>
-                      <th className="p-5 text-[9px] uppercase tracking-widest font-bold text-brand-dark/75 font-bold">Status</th>
+                      <th className="p-5 text-[9px] uppercase tracking-widest font-bold text-brand-dark/75">Status</th>
                       <th className="p-5 text-[9px] uppercase tracking-widest font-bold text-brand-dark/75">Date</th>
                     </tr>
                   </thead>
