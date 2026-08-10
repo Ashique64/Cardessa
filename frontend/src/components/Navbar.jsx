@@ -130,7 +130,7 @@ export default function Navbar() {
   const navLinks = [
     { name: "Home", href: "/" },
     { name: "Templates", href: "/templates" },
-    { name: "Pricing", href: "/pricing" },
+    { name: "How it works", href: "/how-it-works" },
   ];
 
   return (

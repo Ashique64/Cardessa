@@ -20,6 +20,58 @@ export default function Home() {
   const [showAuthMessageModal, setShowAuthMessageModal] = useState(false);
   const heroRef = useRef(null);
 
+  const [featuredTemplates, setFeaturedTemplates] = useState([]);
+  const [loadingTemplates, setLoadingTemplates] = useState(true);
+
+  useEffect(() => {
+    const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+    fetch(`${API}/templates/`)
+      .then((r) => r.json())
+      .then((data) => {
+        const list = Array.isArray(data) ? data : data.results ?? [];
+        setFeaturedTemplates(list.slice(0, 3));
+      })
+      .catch(() => {})
+      .finally(() => setLoadingTemplates(false));
+  }, []);
+
+  const handleUseDesign = async (slug) => {
+    if (!user) {
+      router.push("/login");
+      return;
+    }
+    try {
+      const token = localStorage.getItem("access_token");
+      const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+      const tplRes = await fetch(`${API}/templates/${slug}/`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (tplRes.ok) {
+        const tpl = await tplRes.json();
+        const createRes = await fetch(`${API}/invitations/`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            template: tpl.id,
+            content: tpl.demo_content || {},
+            event_date: tpl.demo_content?.event_date || null
+          })
+        });
+        if (createRes.ok) {
+          const newInvite = await createRes.json();
+          router.push(`/editor/${newInvite.slug}`);
+        } else {
+          router.push("/dashboard");
+        }
+      }
+    } catch {
+      router.push("/dashboard");
+    }
+  };
+
   useEffect(() => {
     // Register ScrollTrigger client-side only
     if (typeof window !== "undefined") {
@@ -190,10 +242,10 @@ export default function Home() {
               Browse Designs
             </Link>
             <Link
-              href="/pricing"
+              href="/how-it-works"
               className="w-full sm:w-auto bg-transparent border border-brand-dark/20 hover:border-brand-dark hover:bg-brand-bg-soft text-brand-dark font-bold py-4 px-10 rounded-lg text-xs uppercase tracking-widest transition-all duration-300 text-center"
             >
-              View Plans
+              How it works
             </Link>
           </div>
 
@@ -357,95 +409,86 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Plan Section */}
-      <section className="gsap-pricing-section py-24 md:py-32 px-6 border-b border-brand-border/40">
+      {/* Featured Designs Section */}
+      <section className="py-24 md:py-32 px-6 border-b border-brand-border/40 bg-brand-bg-soft/10">
         <div className="max-w-7xl mx-auto">
-          
           <div className="text-center mb-20 max-w-xl mx-auto">
-            <span className="text-xs font-bold uppercase tracking-widest text-brand-accent mb-2.5 block">Pricing</span>
+            <span className="text-xs font-bold uppercase tracking-widest text-brand-accent mb-2.5 block">Collection</span>
             <h2 className="font-serif text-4xl sm:text-5xl font-light text-brand-dark tracking-tight">
-              Select Your <span className="italic font-normal">Creative Canvas</span>
+              Our Featured <span className="italic font-normal">Invitation Designs</span>
             </h2>
             <div className="h-0.5 w-16 bg-brand-accent mx-auto mt-4" />
+            <p className="text-sm text-brand-text-muted mt-4">
+              Select a luxury mobile template. Personalize and preview for free, and unlock for a one-time fee when you are ready to share.
+            </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-            
-            {/* Classic Tier */}
-            <motion.div
-              whileHover={{ y: -8, transition: { duration: 0.3 } }}
-              className="gsap-pricing-card bg-brand-bg border border-brand-border rounded-xl p-8 flex flex-col justify-between"
+          {loadingTemplates ? (
+            <div className="flex justify-center items-center py-12 gap-2">
+              <div className="h-5 w-5 border-2 border-brand-accent border-t-transparent rounded-full animate-spin" />
+              <span className="text-xs text-brand-text-muted">Loading designs...</span>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              {featuredTemplates.map((tpl) => (
+                <motion.div
+                  key={tpl.slug}
+                  whileHover={{ y: -8 }}
+                  className="bg-brand-bg border border-brand-border/60 rounded-2xl p-6 flex flex-col justify-between shadow-2xs hover:shadow-lg transition-all duration-300"
+                >
+                  <div>
+                    <div className="flex justify-between items-center mb-4">
+                      <span className="text-[9px] font-bold uppercase tracking-widest bg-brand-bg-soft border border-brand-border/60 px-2 py-0.5 rounded text-brand-text-muted">
+                        {tpl.price_inr === 0 ? "Free" : `₹${tpl.price_inr}`}
+                      </span>
+                      {tpl.is_new && (
+                        <span className="text-[9px] font-bold uppercase tracking-widest bg-brand-accent/20 border border-brand-accent/30 px-2 py-0.5 rounded text-brand-accent">
+                          New
+                        </span>
+                      )}
+                    </div>
+                    
+                    <div className="h-48 w-full bg-brand-bg-soft rounded-xl border border-brand-border flex items-center justify-center overflow-hidden mb-6 relative">
+                      {tpl.thumbnail ? (
+                        <img src={tpl.thumbnail} alt={tpl.name} className="h-full w-full object-cover" />
+                      ) : (
+                        <span className="text-4xl">🎴</span>
+                      )}
+                    </div>
+
+                    <h3 className="font-serif text-2xl font-light text-brand-dark mb-2">{tpl.name}</h3>
+                    <p className="text-xs text-brand-text-muted leading-relaxed line-clamp-3 mb-6">
+                      {tpl.description}
+                    </p>
+                  </div>
+
+                  <div className="flex gap-3 mt-auto">
+                    <Link
+                      href={`/templates/${tpl.slug}`}
+                      className="flex-1 text-center bg-brand-bg-soft hover:bg-brand-dark hover:text-white border border-brand-border text-brand-dark py-3 rounded-lg text-xs font-bold uppercase tracking-wider transition-all duration-300"
+                    >
+                      Preview
+                    </Link>
+                    <button
+                      onClick={() => handleUseDesign(tpl.slug)}
+                      className="flex-1 text-center bg-brand-dark hover:bg-brand-accent text-brand-bg hover:text-brand-dark py-3 rounded-lg text-xs font-bold uppercase tracking-wider transition-all duration-300 cursor-pointer"
+                    >
+                      Use Design
+                    </button>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          )}
+
+          <div className="flex justify-center mt-12">
+            <Link
+              href="/templates"
+              className="bg-transparent border border-brand-dark hover:bg-brand-dark hover:text-brand-bg text-brand-dark font-bold py-4 px-10 rounded-lg text-xs uppercase tracking-widest transition-all duration-300 text-center"
             >
-              <div className="space-y-6">
-                <div>
-                  <h3 className="font-serif text-xl font-medium text-brand-dark">Classic</h3>
-                  <p className="text-xs text-brand-text-muted mt-1">Perfect for simple elegant ceremonies</p>
-                </div>
-                <div className="flex items-baseline gap-1">
-                  <span className="text-4xl font-serif font-light text-brand-dark">₹699</span>
-                  <span className="text-xs text-brand-text-muted">/ event</span>
-                </div>
-                <div className="h-px bg-brand-border" />
-                <ul className="space-y-3.5 text-xs text-brand-text-muted">
-                  <li className="flex items-center gap-2">✔ Access to cardessa classic Invitations</li>
-                  <li className="flex items-center gap-2">✔ 6 Premium Animated Templates</li>
-                  <li className="flex items-center gap-2">✔ 1 Invitation Webpage</li>
-                  <li className="flex items-center gap-2">✔ Unlimited Edits Until Event Date</li>
-                  <li className="flex items-center gap-2">✔ Music, Photos & Custom Uploads</li>
-                  <li className="flex items-center gap-2">✔ Google Maps & Multi-Language Support</li>
-                  <li className="flex items-center gap-2 text-brand-text-muted/40">❌ Cinematic Royal Invitation Experience</li>
-                  <li className="flex items-center gap-2 text-brand-text-muted/40">❌ Luxury Video-Based Opening Experience</li>
-                  <li className="flex items-center gap-2 text-brand-text-muted/40">❌ Premium Motion Storytelling</li>
-                </ul>
-              </div>
-              <Link
-                href="/pricing"
-                className="mt-8 bg-brand-bg-soft border border-brand-border hover:bg-brand-accent hover:border-brand-accent hover:text-white text-brand-dark text-xs font-bold uppercase tracking-wider py-3.5 rounded-lg text-center transition-colors duration-300"
-              >
-                Choose Classic
-              </Link>
-            </motion.div>
-
-            {/* Royal Tier (Highlighted) */}
-            <motion.div
-              whileHover={{ y: -8, transition: { duration: 0.3 } }}
-              className="gsap-pricing-card bg-brand-bg border-2 border-brand-accent rounded-xl p-8 flex flex-col justify-between relative shadow-lg"
-            >
-              {/* Popular Tag */}
-              <div className="absolute top-0 right-8 -translate-y-1/2 bg-brand-accent text-brand-dark text-[9px] font-bold uppercase tracking-widest px-3 py-1 rounded-full shadow-xs">
-                Best Value
-              </div>
-
-              <div className="space-y-6">
-                <div>
-                  <h3 className="font-serif text-xl font-semibold text-brand-accent">Royal</h3>
-                  <p className="text-xs text-brand-text-muted mt-1">Our premium custom cinematic invitation experience</p>
-                </div>
-                <div className="flex items-baseline gap-1">
-                  <span className="text-4xl font-serif font-light text-brand-dark">₹1,399</span>
-                  <span className="text-xs text-brand-text-muted">/ event</span>
-                </div>
-                <div className="h-px bg-brand-border" />
-                <ul className="space-y-3.5 text-xs text-brand-dark">
-                  <li className="flex items-center gap-2 font-semibold text-brand-accent">✔ Everything in Classic, plus:</li>
-                  <li className="flex items-center gap-2">✔ Access to ALL Classic + Royal Invitations</li>
-                  <li className="flex items-center gap-2">✔ 10 Premium Animated Templates</li>
-                  <li className="flex items-center gap-2">✔ Cinematic Royal Invitation Experience</li>
-                  <li className="flex items-center gap-2">✔ Luxury Video-Based Opening Experience</li>
-                  <li className="flex items-center gap-2">✔ Premium Motion Storytelling</li>
-                  <li className="flex items-center gap-2 font-semibold text-brand-accent">✔ Exclusive Royal Template Collection</li>
-                </ul>
-              </div>
-              <Link
-                href="/pricing"
-                className="mt-8 bg-brand-dark hover:bg-brand-accent hover:text-white text-brand-bg text-xs font-bold uppercase tracking-wider py-3.5 rounded-lg text-center transition-colors duration-300 shadow-sm"
-              >
-                Choose Royal
-              </Link>
-            </motion.div>
-
+              View All Designs
+            </Link>
           </div>
-
         </div>
       </section>
 

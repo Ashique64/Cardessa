@@ -17,6 +17,10 @@ class InvitationListCreateView(generics.ListCreateAPIView):
         return Invitation.objects.filter(user=self.request.user)
 
     def perform_create(self, serializer):
+        template = serializer.validated_data.get("template")
+        content = serializer.validated_data.get("content")
+        if (not content or content == {}) and template:
+            serializer.validated_data["content"] = template.demo_content or {}
         serializer.save(user=self.request.user)
 
 

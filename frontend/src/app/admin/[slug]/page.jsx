@@ -6,21 +6,31 @@ import { useRouter, useParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import apiClient from "@/lib/api";
 
 export default function EditTemplate() {
   const router = useRouter();
   const { slug } = useParams();
   const { user, isLoading: authLoading } = useAuth();
+  
+  const [categoriesList, setCategoriesList] = useState([]);
   const [formData, setFormData] = useState({
     name: "",
     slug: "",
     tier: "classic",
+    price_inr: 999,
+    is_new: false,
+    component_key: "ivory-bloom",
     description: "",
+    thumbnail: "",
     is_active: true,
     sort_order: 0,
+    category_ids: [],
     style_tags_str: "",
-    animation_config_str: ""
+    field_schema_str: "",
+    demo_content_str: ""
   });
+  
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -32,27 +42,31 @@ export default function EditTemplate() {
       return;
     }
 
-    const fetchTemplate = async () => {
+    const loadData = async () => {
       try {
-        const token = localStorage.getItem("access_token");
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/templates/admin/${slug}/`, {
-          headers: { Authorization: `Bearer ${token}` },
+        // Fetch categories first
+        const catRes = await apiClient.get("/categories/");
+        setCategoriesList(catRes.data);
+
+        // Fetch template detail
+        const res = await apiClient.get(`/templates/admin/${slug}/`);
+        const tpl = res.data;
+        setFormData({
+          name: tpl.name || "",
+          slug: tpl.slug || "",
+          tier: tpl.tier || "classic",
+          price_inr: tpl.price_inr ?? 999,
+          is_new: !!tpl.is_new,
+          component_key: tpl.component_key || "ivory-bloom",
+          description: tpl.description || "",
+          thumbnail: tpl.thumbnail || "",
+          is_active: !!tpl.is_active,
+          sort_order: tpl.sort_order || 0,
+          category_ids: (tpl.categories || []).map(c => c.id),
+          style_tags_str: (tpl.style_tags || []).join(", "),
+          field_schema_str: JSON.stringify(tpl.field_schema || {}, null, 2),
+          demo_content_str: JSON.stringify(tpl.demo_content || {}, null, 2)
         });
-        if (res.ok) {
-          const tpl = await res.json();
-          setFormData({
-            name: tpl.name || "",
-            slug: tpl.slug || "",
-            tier: tpl.tier || "classic",
-            description: tpl.description || "",
-            is_active: !!tpl.is_active,
-            sort_order: tpl.sort_order || 0,
-            style_tags_str: (tpl.style_tags || []).join(", "),
-            animation_config_str: JSON.stringify(tpl.animation_config || {}, null, 2)
-          });
-        } else {
-          setError("Template not found.");
-        }
       } catch {
         setError("Error loading template details.");
       } finally {
@@ -60,8 +74,47 @@ export default function EditTemplate() {
       }
     };
 
-    fetchTemplate();
+    loadData();
   }, [user, authLoading, slug, router]);
+
+  const handleThumbnailUpload = async (file) => {
+    try {
+      const token = localStorage.getItem("access_token");
+      const presignRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/media/presign/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          filename: file.name,
+          content_type: file.type,
+          field_type: "image",
+        }),
+      });
+      if (!presignRes.ok) throw new Error("Failed to get presigned URL");
+      const { upload_url, public_url } = await presignRes.json();
+
+      await fetch(upload_url, {
+        method: "PUT",
+        headers: { "Content-Type": file.type },
+        body: file,
+      });
+
+      setFormData(prev => ({ ...prev, thumbnail: public_url }));
+    } catch (err) {
+      alert("Failed to upload thumbnail.");
+    }
+  };
+
+  const handleCategoryChange = (catId, checked) => {
+    setFormData(prev => {
+      const updated = checked
+        ? [...prev.category_ids, catId]
+        : prev.category_ids.filter(id => id !== catId);
+      return { ...prev, category_ids: updated };
+    });
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -74,14 +127,20 @@ export default function EditTemplate() {
     setError("");
 
     try {
-      const token = localStorage.getItem("access_token");
-      
-      // Parse JSON fields
-      let animation_config = {};
+      let field_schema = {};
       try {
-        animation_config = JSON.parse(formData.animation_config_str);
+        field_schema = JSON.parse(formData.field_schema_str);
       } catch {
-        setError("Invalid JSON format for animation config.");
+        setError("Invalid JSON format for field schema.");
+        setSaving(false);
+        return;
+      }
+
+      let demo_content = {};
+      try {
+        demo_content = JSON.parse(formData.demo_content_str);
+      } catch {
+        setError("Invalid JSON format for demo content.");
         setSaving(false);
         return;
       }
@@ -91,32 +150,29 @@ export default function EditTemplate() {
         .map((tag) => tag.trim())
         .filter((tag) => tag.length > 0);
 
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/templates/admin/${slug}/`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          name: formData.name,
-          slug: formData.slug,
-          tier: formData.tier,
-          description: formData.description,
-          is_active: formData.is_active,
-          sort_order: parseInt(formData.sort_order) || 0,
-          style_tags,
-          animation_config
-        })
+      await apiClient.patch(`/templates/admin/${slug}/`, {
+        name: formData.name,
+        slug: formData.slug,
+        tier: formData.tier,
+        price_inr: parseInt(formData.price_inr) || 0,
+        is_new: formData.is_new,
+        component_key: formData.component_key,
+        description: formData.description,
+        thumbnail: formData.thumbnail,
+        is_active: formData.is_active,
+        sort_order: parseInt(formData.sort_order) || 0,
+        category_ids: formData.category_ids,
+        style_tags,
+        field_schema,
+        demo_content
       });
 
-      if (res.ok) {
-        router.push("/admin");
-      } else {
-        const errData = await res.json();
-        setError(Object.values(errData).flat().join(" ") || "Failed to update template.");
-      }
-    } catch {
-      setError("An error occurred. Please try again.");
+      router.push("/admin");
+    } catch (err) {
+      const errMsg = err.response?.data
+        ? Object.values(err.response.data).flat().join(" ")
+        : "Failed to update template.";
+      setError(errMsg);
     } finally {
       setSaving(false);
     }
@@ -161,7 +217,7 @@ export default function EditTemplate() {
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               placeholder="e.g. Vintage Velvet"
-              className="w-full bg-brand-bg border border-brand-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-brand-accent focus:ring-1 focus:ring-brand-accent/20"
+              className="w-full bg-brand-bg border border-brand-border rounded-xl px-4 py-3 text-sm focus:outline-none"
             />
           </div>
 
@@ -173,31 +229,108 @@ export default function EditTemplate() {
                 value={formData.slug}
                 onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
                 placeholder="e.g. vintage-velvet"
-                className="w-full bg-brand-bg border border-brand-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-brand-accent focus:ring-1 focus:ring-brand-accent/20"
+                className="w-full bg-brand-bg border border-brand-border rounded-xl px-4 py-3 text-sm focus:outline-none"
               />
             </div>
             <div className="space-y-1.5">
-              <label className="block text-[10px] font-bold uppercase tracking-widest text-brand-dark/75">Tier</label>
+              <label className="block text-[10px] font-bold uppercase tracking-widest text-brand-dark/75">Component Key (Registry)</label>
+              <input
+                type="text"
+                value={formData.component_key}
+                onChange={(e) => setFormData({ ...formData, component_key: e.target.value })}
+                placeholder="e.g. ivory-bloom"
+                className="w-full bg-brand-bg border border-brand-border rounded-xl px-4 py-3 text-sm focus:outline-none"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="block text-[10px] font-bold uppercase tracking-widest text-brand-dark/75">Price (INR)</label>
+              <input
+                type="number"
+                value={formData.price_inr}
+                onChange={(e) => setFormData({ ...formData, price_inr: e.target.value })}
+                placeholder="e.g. 999"
+                className="w-full bg-brand-bg border border-brand-border rounded-xl px-4 py-3 text-sm focus:outline-none"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="block text-[10px] font-bold uppercase tracking-widest text-brand-dark/75">Tier Badge</label>
               <select
                 value={formData.tier}
                 onChange={(e) => setFormData({ ...formData, tier: e.target.value })}
-                className="w-full bg-brand-bg border border-brand-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-brand-accent focus:ring-1 focus:ring-brand-accent/20"
+                className="w-full bg-brand-bg border border-brand-border rounded-xl px-4 py-3 text-sm focus:outline-none"
               >
-                <option value="classic">Classic</option>
-                <option value="royal">Royal</option>
+                <option value="new">New</option>
+                <option value="standard">Standard</option>
+                <option value="premium">Premium</option>
               </select>
             </div>
           </div>
 
-          <div className="space-y-1.5">
+          <div className="space-y-2 border-t pt-4">
+            <label className="block text-[10px] font-bold uppercase tracking-widest text-brand-dark/75">Categories</label>
+            <div className="flex flex-wrap gap-x-6 gap-y-2">
+              {categoriesList.map(cat => (
+                <label key={cat.id} className="flex items-center gap-2 text-xs text-brand-dark">
+                  <input
+                    type="checkbox"
+                    checked={formData.category_ids.includes(cat.id)}
+                    onChange={(e) => handleCategoryChange(cat.id, e.target.checked)}
+                    className="h-4 w-4 text-brand-accent focus:ring-brand-accent border-brand-border rounded"
+                  />
+                  {cat.name}
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-1.5 border-t pt-4">
             <label className="block text-[10px] font-bold uppercase tracking-widest text-brand-dark/75">Style Tags (Comma-separated)</label>
             <input
               type="text"
               value={formData.style_tags_str}
               onChange={(e) => setFormData({ ...formData, style_tags_str: e.target.value })}
               placeholder="Minimalist, Traditional, Modern"
-              className="w-full bg-brand-bg border border-brand-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-brand-accent focus:ring-1 focus:ring-brand-accent/20"
+              className="w-full bg-brand-bg border border-brand-border rounded-xl px-4 py-3 text-sm focus:outline-none"
             />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="block text-[10px] font-bold uppercase tracking-widest text-brand-dark/75">Thumbnail Image URL</label>
+            {formData.thumbnail && (
+              <div className="h-28 w-full border rounded-xl overflow-hidden mb-2 relative group">
+                <img src={formData.thumbnail} alt="Thumbnail preview" className="h-full w-full object-cover" />
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, thumbnail: "" })}
+                  className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs font-bold transition duration-200"
+                >
+                  Remove
+                </button>
+              </div>
+            )}
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={formData.thumbnail}
+                onChange={(e) => setFormData({ ...formData, thumbnail: e.target.value })}
+                placeholder="Thumbnail URL path..."
+                className="flex-1 bg-brand-bg border border-brand-border rounded-xl px-4 py-3 text-xs focus:outline-none"
+              />
+              <div className="bg-brand-dark text-brand-bg hover:bg-brand-accent hover:text-brand-dark transition-colors px-4 rounded-xl text-xs font-bold flex items-center justify-center relative cursor-pointer">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    if (e.target.files?.[0]) handleThumbnailUpload(e.target.files[0]);
+                  }}
+                  className="absolute inset-0 opacity-0 cursor-pointer"
+                />
+                Upload
+              </div>
+            </div>
           </div>
 
           <div className="space-y-1.5">
@@ -205,24 +338,33 @@ export default function EditTemplate() {
             <textarea
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              rows="3"
+              rows="2"
               placeholder="Short sales copy describing design highlights…"
-              className="w-full bg-brand-bg border border-brand-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-brand-accent focus:ring-1 focus:ring-brand-accent/20"
+              className="w-full bg-brand-bg border border-brand-border rounded-xl px-4 py-3 text-sm focus:outline-none resize-none"
             />
           </div>
 
           <div className="space-y-1.5">
-            <label className="block text-[10px] font-bold uppercase tracking-widest text-brand-dark/75">Animation Config JSON</label>
+            <label className="block text-[10px] font-bold uppercase tracking-widest text-brand-dark/75">Field Schema JSON Config</label>
             <textarea
-              value={formData.animation_config_str}
-              onChange={(e) => setFormData({ ...formData, animation_config_str: e.target.value })}
-              rows="4"
-              placeholder='e.g. {"hero": "kinetic", "interactive": "scratch"}'
-              className="w-full bg-brand-bg border border-brand-border rounded-xl px-4 py-3 text-xs font-mono focus:outline-none focus:border-brand-accent focus:ring-1 focus:ring-brand-accent/20"
+              value={formData.field_schema_str}
+              onChange={(e) => setFormData({ ...formData, field_schema_str: e.target.value })}
+              rows="5"
+              className="w-full bg-brand-bg border border-brand-border rounded-xl px-4 py-3 text-xs font-mono focus:outline-none"
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4 items-center border-t border-brand-border/40 pt-4">
+          <div className="space-y-1.5">
+            <label className="block text-[10px] font-bold uppercase tracking-widest text-brand-dark/75">Demo Content JSON Config</label>
+            <textarea
+              value={formData.demo_content_str}
+              onChange={(e) => setFormData({ ...formData, demo_content_str: e.target.value })}
+              rows="5"
+              className="w-full bg-brand-bg border border-brand-border rounded-xl px-4 py-3 text-xs font-mono focus:outline-none"
+            />
+          </div>
+
+          <div className="grid grid-cols-3 gap-4 items-center border-t border-brand-border/40 pt-4">
             <div className="flex items-center gap-3">
               <input
                 type="checkbox"
@@ -230,7 +372,16 @@ export default function EditTemplate() {
                 onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
                 className="h-4 w-4 text-brand-accent focus:ring-brand-accent border-brand-border rounded"
               />
-              <span className="text-xs font-bold uppercase tracking-widest text-brand-dark/75">Is Active (Visible)</span>
+              <span className="text-xs font-bold uppercase tracking-widest text-brand-dark/75">Is Active</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <input
+                type="checkbox"
+                checked={formData.is_new}
+                onChange={(e) => setFormData({ ...formData, is_new: e.target.checked })}
+                className="h-4 w-4 text-brand-accent focus:ring-brand-accent border-brand-border rounded"
+              />
+              <span className="text-xs font-bold uppercase tracking-widest text-brand-dark/75">Is New</span>
             </div>
             <div className="space-y-1.5">
               <label className="block text-[10px] font-bold uppercase tracking-widest text-brand-dark/75">Sort Order</label>
@@ -238,7 +389,7 @@ export default function EditTemplate() {
                 type="number"
                 value={formData.sort_order}
                 onChange={(e) => setFormData({ ...formData, sort_order: e.target.value })}
-                className="w-full bg-brand-bg border border-brand-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-brand-accent focus:ring-1 focus:ring-brand-accent/20"
+                className="w-full bg-brand-bg border border-brand-border rounded-xl px-4 py-3 text-sm focus:outline-none"
               />
             </div>
           </div>

@@ -27,7 +27,8 @@ export default function TemplatesPage() {
   const [loadingTemplates, setLoadingTemplates] = useState(true);
 
   // ── Filter / pagination state ──────────────────────────────────────────────
-  const [activeTier, setActiveTier] = useState("all");       // all | classic | royal
+  const [activeTier, setActiveTier] = useState("all");         // all | new | standard | premium
+  const [activeSort, setActiveSort] = useState("newest");      // default to newest arrivals
   const [activeCategory, setActiveCategory] = useState("all"); // all | <slug>
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
@@ -53,8 +54,9 @@ export default function TemplatesPage() {
     const params = new URLSearchParams();
     if (activeCategory !== "all") params.set("category", activeCategory);
     if (activeTier !== "all") params.set("tier", activeTier);
+    if (activeSort !== "default") params.set("sort", activeSort);
 
-    fetch(`${API}/templates/?${params.toString()}`)
+    fetch(`${API}/templates/?${params.toString()}`, { cache: "no-store" })
       .then((r) => r.json())
       .then((data) => {
         const list = Array.isArray(data) ? data : data.results ?? [];
@@ -62,23 +64,37 @@ export default function TemplatesPage() {
       })
       .catch(() => setTemplates([]))
       .finally(() => setLoadingTemplates(false));
-  }, [activeCategory, activeTier]);
+  }, [activeCategory, activeTier, activeSort]);
 
   // ── Reset page when filters change ────────────────────────────────────────
   useEffect(() => {
     setCurrentPage(1);
-  }, [activeCategory, activeTier]);
+  }, [activeCategory, activeTier, activeSort]);
 
   // ── Use Design handler ─────────────────────────────────────────────────────
-  const handleUseDesign = async (slug) => {
+  const handleUseDesign = async (tpl) => {
     if (!user) { router.push("/login"); return; }
-    if (user.is_superuser || user.is_staff) { router.push(`/editor/${slug}`); return; }
-    setLoadingSlug(slug);
+    setLoadingSlug(tpl.slug);
     try {
-      const res = await ordersApi.checkPlan();
-      router.push(res.data.has_plan ? `/editor/${slug}` : "/pricing");
+      const token = localStorage.getItem("access_token");
+      const res = await fetch(`${API}/invitations/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          template: tpl.id
+        })
+      });
+      if (res.ok) {
+        const newInvite = await res.json();
+        router.push(`/editor/${newInvite.slug}`);
+      } else {
+        alert("Failed to initialize design editor.");
+      }
     } catch {
-      router.push("/pricing");
+      alert("Error starting editor session.");
     } finally {
       setLoadingSlug(null);
     }
@@ -151,25 +167,45 @@ export default function TemplatesPage() {
           </div>
         )}
 
-        {/* ── Tier Filter Pills ── */}
-        <div className="flex justify-center gap-3 mb-12">
-          {[
-            { id: "all",     label: "All Designs" },
-            { id: "classic", label: "Classic" },
-            { id: "royal",   label: "Royal" },
-          ].map(({ id, label }) => (
-            <button
-              key={id}
-              onClick={() => setActiveTier(id)}
-              className={`px-6 py-2.5 rounded-full text-xs font-bold uppercase tracking-widest border transition-all duration-300 ${
-                activeTier === id
-                  ? "bg-brand-dark border-brand-dark text-white shadow-sm"
-                  : "bg-brand-bg-soft border-brand-border/60 text-brand-dark hover:bg-brand-accent hover:border-brand-accent hover:text-white"
-              }`}
+        {/* ── Price and Sort Filter Pills ── */}
+        <div className="flex flex-col sm:flex-row justify-center items-center gap-6 mb-12">
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-brand-text-muted">Tier:</span>
+            <div className="flex gap-2">
+              {[
+                { id: "all",     label: "All" },
+                { id: "new",     label: "New" },
+                { id: "standard", label: "Standard" },
+                { id: "premium",  label: "Premium" },
+              ].map(({ id, label }) => (
+                <button
+                  key={id}
+                  onClick={() => setActiveTier(id)}
+                  className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider border transition-all ${
+                    activeTier === id
+                      ? "bg-brand-dark border-brand-dark text-white"
+                      : "bg-brand-bg-soft border-brand-border/60 text-brand-dark hover:bg-brand-accent hover:border-brand-accent hover:text-white"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-brand-text-muted">Sort By:</span>
+            <select
+              value={activeSort}
+              onChange={(e) => setActiveSort(e.target.value)}
+              className="bg-brand-bg border border-brand-border/60 rounded-xl px-4 py-1.5 text-xs font-semibold text-brand-dark focus:outline-none focus:border-brand-accent cursor-pointer"
             >
-              {label}
-            </button>
-          ))}
+              <option value="default">Default</option>
+              <option value="newest">Newest Arrivals</option>
+              <option value="price_low">Price: Low to High</option>
+              <option value="price_high">Price: High to Low</option>
+            </select>
+          </div>
         </div>
 
         {/* ── Templates Grid ── */}
@@ -217,15 +253,21 @@ export default function TemplatesPage() {
                     className="bg-brand-bg rounded-2xl border border-brand-border/60 p-8 flex flex-col justify-between shadow-2xs hover:border-brand-accent/40 hover:shadow-[0_12px_30px_-10px_rgba(95,125,103,0.12)] transition-[border-color,box-shadow] duration-300"
                   >
                     <div>
-                      {/* Tier badge + category tags */}
+                      {/* Badge tags + category tags */}
                       <div className="flex items-center justify-between mb-5 flex-wrap gap-2">
-                        <span
-                          className={`inline-flex items-center rounded-md px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-widest ${
-                            tierStyles[tpl.tier?.toLowerCase()] || tierStyles.classic
-                          }`}
-                        >
-                          {tpl.tier}
-                        </span>
+                        <div className="flex gap-1.5">
+                          <span
+                            className={`inline-flex items-center rounded-md px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-widest ${
+                              tpl.tier === "new"
+                                ? "bg-blue-50 text-blue-600 border border-blue-200"
+                                : tpl.tier === "standard"
+                                ? "bg-emerald-50 text-emerald-600 border border-emerald-200"
+                                : "bg-purple-50 text-purple-600 border border-purple-200"
+                            }`}
+                          >
+                            {tpl.tier || "Standard"}
+                          </span>
+                        </div>
 
                         {categoryLabels && (
                           <span className="text-[10px] text-brand-text-muted font-medium tracking-wide">
@@ -247,8 +289,13 @@ export default function TemplatesPage() {
                             <span className="text-xl">🎴</span>
                           )}
                         </div>
-                        <div>
-                          <h3 className="text-2xl font-serif font-medium text-brand-dark">{tpl.name}</h3>
+                        <div className="flex-1">
+                          <div className="flex justify-between items-baseline gap-2">
+                            <h3 className="text-2xl font-serif font-medium text-brand-dark">{tpl.name}</h3>
+                            <span className="text-xs font-semibold text-brand-dark/80 shrink-0">
+                              {tpl.price_inr === 0 ? "Free" : `₹${tpl.price_inr}`}
+                            </span>
+                          </div>
                           <p className="text-brand-text-muted text-xs leading-relaxed mt-2 line-clamp-3">
                             {tpl.description}
                           </p>
@@ -265,7 +312,7 @@ export default function TemplatesPage() {
                         Live Preview
                       </Link>
                       <button
-                        onClick={() => handleUseDesign(tpl.slug)}
+                        onClick={() => handleUseDesign(tpl)}
                         disabled={loadingSlug !== null}
                         className="flex-1 text-center bg-brand-bg-soft hover:bg-brand-dark text-brand-dark hover:text-brand-bg font-bold py-3 px-4 rounded-lg text-xs uppercase tracking-wider transition-colors duration-300 border border-brand-border/60 cursor-pointer disabled:opacity-50"
                       >

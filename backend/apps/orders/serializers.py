@@ -25,7 +25,7 @@ class OrderSerializer(serializers.ModelSerializer):
 
 
 class AdminOrderSerializer(serializers.ModelSerializer):
-    plan_name = serializers.CharField(source="plan.name", read_only=True)
+    plan_name = serializers.SerializerMethodField()
     user_email = serializers.EmailField(source="user.email", read_only=True)
 
     class Meta:
@@ -35,4 +35,11 @@ class AdminOrderSerializer(serializers.ModelSerializer):
             "amount_inr", "status", "created_at"
         ]
         read_only_fields = fields
+
+    def get_plan_name(self, obj):
+        if obj.plan:
+            return obj.plan.name
+        if obj.invitation and obj.invitation.template:
+            return f"Template: {obj.invitation.template.name}"
+        return "Custom Invitation"
 

@@ -40,8 +40,8 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/pricing" className="hover:text-brand-accent transition-colors duration-300">
-                  Pricing Plans
+                <Link href="/how-it-works" className="hover:text-brand-accent transition-colors duration-300">
+                  How it works
                 </Link>
               </li>
             </ul>

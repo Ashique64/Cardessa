@@ -345,7 +345,7 @@ export default function IvoryBloom({ content = {}, mode = "live", onRsvpSubmit, 
           </h2>
           <div className="h-60 bg-zinc-100 rounded-2xl overflow-hidden border border-zinc-200 shadow-xs relative">
             <iframe
-              src={`https://www.google.com/maps/embed/v1/place?key=&q=${encodeURIComponent(venueAddress)}`}
+              src={`https://maps.google.com/maps?q=${encodeURIComponent(venueAddress)}&t=&z=14&ie=UTF8&iwloc=&output=embed`}
               width="100%" height="100%"
               style={{ border: 0 }}
               allowFullScreen=""

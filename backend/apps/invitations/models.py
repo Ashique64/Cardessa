@@ -27,14 +27,16 @@ class Invitation(models.Model):
     # This is the single source of truth for all user customizations going forward.
     content = models.JSONField(
         default=dict,
+        blank=True,
         help_text="User-supplied content keyed by the template's field_schema field keys.",
     )
 
     # Legacy: kept for backward compatibility — migrated to content via data migration.
     # Do not write new data here; read from content instead.
-    config = models.JSONField(default=dict)
+    config = models.JSONField(default=dict, blank=True)
     event_date = models.DateField(null=True, blank=True)
     is_published = models.BooleanField(default=False)
+    is_paid = models.BooleanField(default=False)
     # Phase 2: optional custom subdomain e.g. "rahul-priya"
     custom_subdomain = models.SlugField(unique=True, blank=True, null=True)
     # Phase 3: optional custom domain e.g. "invite.theirsite.com"

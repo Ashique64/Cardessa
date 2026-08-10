@@ -43,7 +43,14 @@ class Order(models.Model):
         on_delete=models.CASCADE,
         related_name="orders",
     )
-    plan = models.ForeignKey(Plan, on_delete=models.PROTECT, related_name="orders")
+    plan = models.ForeignKey(Plan, on_delete=models.PROTECT, related_name="orders", null=True, blank=True)
+    invitation = models.ForeignKey(
+        "invitations.Invitation",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="orders",
+    )
     # Razorpay IDs
     razorpay_order_id = models.CharField(max_length=100, unique=True)
     razorpay_payment_id = models.CharField(max_length=100, blank=True)

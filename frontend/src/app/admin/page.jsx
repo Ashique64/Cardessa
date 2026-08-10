@@ -6,16 +6,18 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import apiClient from "@/lib/api";
 
 export default function AdminDashboard() {
   const router = useRouter();
   const { user, isLoading: authLoading } = useAuth();
   
-  // Navigation tabs: 'stats' | 'templates' | 'users' | 'orders'
+  // Navigation tabs: 'stats' | 'templates' | 'categories' | 'users' | 'orders'
   const [activeTab, setActiveTab] = useState("stats");
   
   // Loaded data states
   const [templates, setTemplates] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [users, setUsers] = useState([]);
   const [orders, setOrders] = useState([]);
   const [stats, setStats] = useState({
@@ -26,50 +28,41 @@ export default function AdminDashboard() {
     active_plans: 0
   });
 
+  // Create category form state
+  const [newCategory, setNewCategory] = useState({ name: "", slug: "", icon: "", sort_order: 0 });
+  const [creatingCategory, setCreatingCategory] = useState(false);
+
   const [loading, setLoading] = useState(true);
 
   const loadAdminData = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem("access_token");
-      
       // Fetch stats
-      const statsRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/orders/admin-stats/`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (statsRes.ok) {
-        const statsData = await statsRes.json();
-        setStats(statsData);
-      }
+      const statsRes = await apiClient.get("/orders/admin-stats/");
+      setStats(statsRes.data);
 
       // Fetch templates
-      const tplRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/templates/admin/`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (tplRes.ok) {
-        const tplData = await tplRes.json();
-        setTemplates(Array.isArray(tplData) ? tplData : tplData.results ?? []);
-      }
+      const tplRes = await apiClient.get("/templates/admin/");
+      const tplData = tplRes.data;
+      setTemplates(Array.isArray(tplData) ? tplData : tplData.results ?? []);
+
+      // Fetch categories
+      const catRes = await apiClient.get("/templates/categories/admin/");
+      const catData = catRes.data;
+      setCategories(Array.isArray(catData) ? catData : catData.results ?? []);
 
       // Fetch users
-      const usersRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/users/admin/`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (usersRes.ok) {
-        const usersData = await usersRes.json();
-        setUsers(Array.isArray(usersData) ? usersData : usersData.results ?? []);
-      }
+      const usersRes = await apiClient.get("/users/admin/");
+      const usersData = usersRes.data;
+      setUsers(Array.isArray(usersData) ? usersData : usersData.results ?? []);
 
       // Fetch orders
-      const ordersRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/orders/admin/`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (ordersRes.ok) {
-        const ordersData = await ordersRes.json();
-        setOrders(Array.isArray(ordersData) ? ordersData : ordersData.results ?? []);
-      }
+      const ordersRes = await apiClient.get("/orders/admin/");
+      const ordersData = ordersRes.data;
+      setOrders(Array.isArray(ordersData) ? ordersData : ordersData.results ?? []);
 
-    } catch {
+    } catch (err) {
+      console.error("Failed to load admin logs:", err);
       alert("Failed to retrieve console data logs.");
     } finally {
       setLoading(false);
@@ -88,20 +81,49 @@ export default function AdminDashboard() {
   const handleDeleteTemplate = async (slug) => {
     if (!confirm("Are you sure you want to delete this template?")) return;
     try {
-      const token = localStorage.getItem("access_token");
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/templates/admin/${slug}/`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        setTemplates((prev) => prev.filter((t) => t.slug !== slug));
-        // refresh stats
-        loadAdminData();
-      } else {
-        alert("Delete failed.");
-      }
+      await apiClient.delete(`/templates/admin/${slug}/`);
+      setTemplates((prev) => prev.filter((t) => t.slug !== slug));
+      loadAdminData(); // Refresh stats
     } catch {
       alert("Error deleting template.");
+    }
+  };
+
+  const handleCreateCategory = async (e) => {
+    e.preventDefault();
+    if (!newCategory.name || !newCategory.slug) {
+      alert("Name and Slug are required.");
+      return;
+    }
+    setCreatingCategory(true);
+    try {
+      const res = await apiClient.post("/templates/categories/admin/", {
+        name: newCategory.name,
+        slug: newCategory.slug,
+        icon: newCategory.icon,
+        sort_order: parseInt(newCategory.sort_order) || 0
+      });
+      setCategories(prev => [...prev, res.data]);
+      setNewCategory({ name: "", slug: "", icon: "", sort_order: 0 });
+      loadAdminData(); // Refresh stats
+    } catch (err) {
+      const errMsg = err.response?.data
+        ? Object.values(err.response.data).flat().join(" ")
+        : "Failed to create category.";
+      alert(errMsg);
+    } finally {
+      setCreatingCategory(false);
+    }
+  };
+
+  const handleDeleteCategory = async (id) => {
+    if (!confirm("Are you sure you want to delete this category?")) return;
+    try {
+      await apiClient.delete(`/templates/categories/admin/${id}/`);
+      setCategories(prev => prev.filter(c => c.id !== id));
+      loadAdminData(); // Refresh stats
+    } catch {
+      alert("Error deleting category.");
     }
   };
 
@@ -139,10 +161,11 @@ export default function AdminDashboard() {
         </header>
 
         {/* Tab Navigation */}
-        <div className="flex border-b border-brand-border/40 gap-6 mb-10 text-xs font-bold uppercase tracking-wider">
+        <div className="flex border-b border-brand-border/40 gap-6 mb-10 text-xs font-bold uppercase tracking-wider overflow-x-auto">
           {[
             { id: "stats", label: "Stats & Metrics" },
             { id: "templates", label: "Templates Manager" },
+            { id: "categories", label: "Category Manager" },
             { id: "users", label: "User Directory" },
             { id: "orders", label: "Paid Orders Log" }
           ].map((tab) => (
@@ -151,8 +174,8 @@ export default function AdminDashboard() {
               onClick={() => setActiveTab(tab.id)}
               className={`pb-3 transition border-b-2 cursor-pointer ${
                 activeTab === tab.id
-                  ? "border-brand-accent text-brand-dark"
-                  : "border-transparent text-brand-text-muted hover:text-brand-dark"
+                  ? "border-brand-accent text-brand-dark shrink-0"
+                  : "border-transparent text-brand-text-muted hover:text-brand-dark shrink-0"
               }`}
             >
               {tab.label}
@@ -202,8 +225,8 @@ export default function AdminDashboard() {
                   <thead>
                     <tr className="bg-brand-bg-soft/40 border-b border-brand-border/60">
                       <th className="p-5 text-[9px] uppercase tracking-widest font-bold text-brand-dark/75">Template Name</th>
-                      <th className="p-5 text-[9px] uppercase tracking-widest font-bold text-brand-dark/75">Tier</th>
-                      <th className="p-5 text-[9px] uppercase tracking-widest font-bold text-brand-dark/75">Style</th>
+                      <th className="p-5 text-[9px] uppercase tracking-widest font-bold text-brand-dark/75">Price</th>
+                      <th className="p-5 text-[9px] uppercase tracking-widest font-bold text-brand-dark/75">Component Key</th>
                       <th className="p-5 text-[9px] uppercase tracking-widest font-bold text-brand-dark/75">Status</th>
                       <th className="p-5 text-[9px] uppercase tracking-widest font-bold text-brand-dark/75 text-right">Actions</th>
                     </tr>
@@ -213,9 +236,11 @@ export default function AdminDashboard() {
                       <tr key={tpl.id} className="hover:bg-brand-bg-soft/10">
                         <td className="p-5 font-serif text-sm font-semibold text-brand-dark">{tpl.name}</td>
                         <td className="p-5">
-                          <span className="text-[9px] font-bold uppercase px-2 py-0.5 rounded border bg-brand-bg-soft text-brand-text-muted">{tpl.tier}</span>
+                          <span className="text-[9px] font-bold uppercase px-2 py-0.5 rounded border bg-brand-bg-soft text-brand-text-muted">
+                            {tpl.price_inr === 0 ? "Free" : `₹${tpl.price_inr}`}
+                          </span>
                         </td>
-                        <td className="p-5 text-brand-text-muted">{tpl.style_tags?.[0] || "Custom"}</td>
+                        <td className="p-5 text-brand-text-muted font-mono">{tpl.component_key || "—"}</td>
                         <td className="p-5">
                           {tpl.is_active ? (
                             <span className="text-[9px] font-bold uppercase text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">Active</span>
@@ -236,7 +261,115 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* TAB 3: USER DIRECTORY */}
+        {/* TAB 3: CATEGORY MANAGER */}
+        {activeTab === "categories" && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            
+            {/* Left Side: Create Category Form */}
+            <div className="bg-white border border-brand-border/60 rounded-3xl p-6 shadow-2xs space-y-4 h-fit">
+              <h3 className="font-serif text-xl font-light text-brand-dark">Create Category</h3>
+              
+              <form onSubmit={handleCreateCategory} className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="block text-[9px] font-bold uppercase tracking-widest text-brand-dark/75">Category Name</label>
+                  <input
+                    type="text"
+                    value={newCategory.name}
+                    onChange={(e) => setNewCategory({
+                      ...newCategory,
+                      name: e.target.value,
+                      slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-")
+                    })}
+                    placeholder="e.g. Wedding, Reception"
+                    className="w-full bg-brand-bg border border-brand-border rounded-xl px-4 py-2.5 text-xs focus:outline-none"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="block text-[9px] font-bold uppercase tracking-widest text-brand-dark/75">URL Slug</label>
+                  <input
+                    type="text"
+                    value={newCategory.slug}
+                    onChange={(e) => setNewCategory({ ...newCategory, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-") })}
+                    placeholder="e.g. wedding-reception"
+                    className="w-full bg-brand-bg border border-brand-border rounded-xl px-4 py-2.5 text-xs focus:outline-none"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="block text-[9px] font-bold uppercase tracking-widest text-brand-dark/75">Emoji Icon</label>
+                  <input
+                    type="text"
+                    value={newCategory.icon}
+                    onChange={(e) => setNewCategory({ ...newCategory, icon: e.target.value })}
+                    placeholder="e.g. 💍, 🌸, 🎉"
+                    className="w-full bg-brand-bg border border-brand-border rounded-xl px-4 py-2.5 text-xs focus:outline-none"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="block text-[9px] font-bold uppercase tracking-widest text-brand-dark/75">Sort Order</label>
+                  <input
+                    type="number"
+                    value={newCategory.sort_order}
+                    onChange={(e) => setNewCategory({ ...newCategory, sort_order: parseInt(e.target.value) || 0 })}
+                    className="w-full bg-brand-bg border border-brand-border rounded-xl px-4 py-2.5 text-xs focus:outline-none"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={creatingCategory}
+                  className="w-full bg-brand-dark hover:bg-brand-accent text-brand-bg hover:text-white font-bold py-3 rounded-xl text-xs uppercase tracking-widest transition shadow-sm cursor-pointer disabled:opacity-55"
+                >
+                  {creatingCategory ? "Creating..." : "Save Category"}
+                </button>
+              </form>
+            </div>
+
+            {/* Right Side: Categories list */}
+            <div className="md:col-span-2 bg-white border border-brand-border/60 rounded-3xl overflow-hidden shadow-2xs">
+              {categories.length === 0 ? (
+                <div className="text-center py-20 text-brand-text-muted italic text-xs">No categories found.</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-brand-bg-soft/40 border-b border-brand-border/60">
+                        <th className="p-4 text-[9px] uppercase tracking-widest font-bold text-brand-dark/75">Icon</th>
+                        <th className="p-4 text-[9px] uppercase tracking-widest font-bold text-brand-dark/75">Category Name</th>
+                        <th className="p-4 text-[9px] uppercase tracking-widest font-bold text-brand-dark/75">Slug</th>
+                        <th className="p-4 text-[9px] uppercase tracking-widest font-bold text-brand-dark/75">Sort Order</th>
+                        <th className="p-4 text-[9px] uppercase tracking-widest font-bold text-brand-dark/75 text-right">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-brand-border/30 text-xs">
+                      {categories.map((cat) => (
+                        <tr key={cat.id} className="hover:bg-brand-bg-soft/10">
+                          <td className="p-4 text-lg">{cat.icon || "📁"}</td>
+                          <td className="p-4 font-semibold text-brand-dark">{cat.name}</td>
+                          <td className="p-4 text-brand-text-muted font-mono">{cat.slug}</td>
+                          <td className="p-4 text-brand-text font-mono">{cat.sort_order}</td>
+                          <td className="p-4 text-right">
+                            <button
+                              onClick={() => handleDeleteCategory(cat.id)}
+                              className="bg-red-50 hover:bg-red-500 hover:text-white text-red-650 px-3 py-1.5 rounded-lg text-[9px] uppercase font-bold transition cursor-pointer"
+                            >
+                              Delete
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+          </div>
+        )}
+
+        {/* TAB 4: USER DIRECTORY */}
         {activeTab === "users" && (
           <div className="bg-white border border-brand-border/60 rounded-3xl overflow-hidden shadow-2xs">
             {users.length === 0 ? (
@@ -278,7 +411,7 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* TAB 4: PAID ORDERS LOG */}
+        {/* TAB 5: PAID ORDERS LOG */}
         {activeTab === "orders" && (
           <div className="bg-white border border-brand-border/60 rounded-3xl overflow-hidden shadow-2xs">
             {orders.length === 0 ? (
@@ -289,7 +422,7 @@ export default function AdminDashboard() {
                   <thead>
                     <tr className="bg-brand-bg-soft/40 border-b border-brand-border/60">
                       <th className="p-5 text-[9px] uppercase tracking-widest font-bold text-brand-dark/75">User Email</th>
-                      <th className="p-5 text-[9px] uppercase tracking-widest font-bold text-brand-dark/75">Plan Purchased</th>
+                      <th className="p-5 text-[9px] uppercase tracking-widest font-bold text-brand-dark/75">Product / Template</th>
                       <th className="p-5 text-[9px] uppercase tracking-widest font-bold text-brand-dark/75">Amount Paid</th>
                       <th className="p-5 text-[9px] uppercase tracking-widest font-bold text-brand-dark/75">Razorpay Order / Payment ID</th>
                       <th className="p-5 text-[9px] uppercase tracking-widest font-bold text-brand-dark/75">Status</th>
@@ -301,7 +434,7 @@ export default function AdminDashboard() {
                       <tr key={ord.id} className="hover:bg-brand-bg-soft/10">
                         <td className="p-5 font-semibold text-brand-dark font-mono">{ord.user_email}</td>
                         <td className="p-5 font-medium text-brand-dark">{ord.plan_name}</td>
-                        <td className="p-5 text-brand-text font-bold">₹{(ord.amount_inr / 100.0).toFixed(2)}</td>
+                        <td className="p-5 text-brand-text font-bold">₹{Number(ord.amount_inr || 0).toFixed(2)}</td>
                         <td className="p-5 text-brand-text-muted font-mono space-y-0.5">
                           <p>O: {ord.razorpay_order_id || "—"}</p>
                           <p>P: {ord.razorpay_payment_id || "—"}</p>
@@ -310,7 +443,7 @@ export default function AdminDashboard() {
                           {ord.status === "paid" ? (
                             <span className="text-[9px] font-bold uppercase text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">Paid</span>
                           ) : (
-                            <span className="text-[9px] font-bold uppercase text-zinc-500 bg-zinc-50 px-2 py-0.5 rounded border border-zinc-200">Pending</span>
+                            <span className="text-[9px] font-bold uppercase text-zinc-500 bg-zinc-55 px-2 py-0.5 rounded border border-zinc-200">Pending</span>
                           )}
                         </td>
                         <td className="p-5 text-brand-text-muted">

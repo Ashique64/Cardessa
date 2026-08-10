@@ -18,24 +18,24 @@ const PLAN_LABELS = {
   royal: { label: "Royal", cls: "bg-brand-accent/12 text-brand-accent border border-brand-accent/20" },
 };
 
-function StatusPill({ status }) {
-  const s = status?.toLowerCase();
-  if (s === "published")
+function StatusPill({ isPaid }) {
+  if (isPaid)
     return (
       <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-emerald-600 bg-emerald-50 border border-emerald-200/60 px-2.5 py-1 rounded-full">
         <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-        Published
+        Paid &amp; Active
       </span>
     );
   return (
     <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-amber-600 bg-amber-50 border border-amber-200/60 px-2.5 py-1 rounded-full">
       <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
-      Draft
+      Unpaid Draft
     </span>
   );
 }
 
-function EmptyState() {
+function EmptyState({ tab }) {
+  const isDrafts = tab === "drafts";
   return (
     <motion.div {...fadeUp} className="flex flex-col items-center justify-center py-28 px-8 text-center max-w-sm mx-auto space-y-8">
       <div className="relative">
@@ -49,21 +49,31 @@ function EmptyState() {
       </div>
 
       <div className="space-y-2.5">
-        <p className="text-[10px] font-bold uppercase tracking-widest text-brand-accent">No Invitations Yet</p>
+        <p className="text-[10px] font-bold uppercase tracking-widest text-brand-accent">
+          {isDrafts ? "No Drafts" : "No Active Invites"}
+        </p>
         <h3 className="font-serif text-2xl font-light text-brand-dark leading-snug">
-          Begin your <span className="italic font-normal">design journey</span>
+          {isDrafts ? (
+            <>Begin your <span className="italic font-normal">design journey</span></>
+          ) : (
+            <>Activate your <span className="italic font-normal">invitations</span></>
+          )}
         </h3>
         <p className="text-sm text-brand-text-muted leading-relaxed">
-          Choose from our curated Classic or Royal collection and create your first luxury digital invitation.
+          {isDrafts
+            ? "Choose from our catalog of premium templates and customize your wedding card."
+            : "Go to your drafts and complete publishing to activate your shareable links."}
         </p>
       </div>
 
-      <Link
-        href="/templates"
-        className="bg-brand-dark hover:bg-brand-accent text-brand-bg font-bold py-3.5 px-8 rounded-xl text-xs uppercase tracking-widest transition-colors duration-300 shadow-sm"
-      >
-        Browse Templates
-      </Link>
+      {isDrafts && (
+        <Link
+          href="/templates"
+          className="bg-brand-dark hover:bg-brand-accent text-brand-bg font-bold py-3.5 px-8 rounded-xl text-xs uppercase tracking-widest transition-colors duration-300 shadow-sm"
+        >
+          Browse Templates
+        </Link>
+      )}
     </motion.div>
   );
 }
@@ -288,6 +298,7 @@ export default function DashboardPage() {
   const [invitations, setInvitations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedInviteSlug, setSelectedInviteSlug] = useState(null);
+  const [dashboardTab, setDashboardTab] = useState("drafts"); // drafts | purchased
 
   // Agency client folder states
   const [features, setFeatures] = useState({
@@ -410,8 +421,8 @@ export default function DashboardPage() {
           >
             {[
               { label: "Total Invitations", value: invitations.length },
-              { label: "Published", value: invitations.filter((i) => i.status?.toLowerCase() === "published").length },
-              { label: "Draft", value: invitations.filter((i) => i.status?.toLowerCase() !== "published").length },
+              { label: "Published & Paid", value: invitations.filter((i) => i.is_paid).length },
+              { label: "Drafts", value: invitations.filter((i) => !i.is_paid).length },
             ].map(({ label, value }) => (
               <div key={label} className="bg-brand-bg border border-brand-border/50 rounded-2xl p-5 space-y-1">
                 <p className="text-2xl font-serif font-light text-brand-dark">{value}</p>
@@ -451,6 +462,30 @@ export default function DashboardPage() {
           </div>
         )}
 
+        {/* Dashboard Tabs */}
+        <div className="flex border-b border-brand-border/40 gap-6 mb-8 text-xs font-bold uppercase tracking-wider">
+          <button
+            onClick={() => setDashboardTab("drafts")}
+            className={`pb-3 transition border-b-2 cursor-pointer ${
+              dashboardTab === "drafts"
+                ? "border-brand-accent text-brand-dark"
+                : "border-transparent text-brand-text-muted hover:text-brand-dark"
+            }`}
+          >
+            Edited Designs ({invitations.filter((i) => !i.is_paid).length})
+          </button>
+          <button
+            onClick={() => setDashboardTab("purchased")}
+            className={`pb-3 transition border-b-2 cursor-pointer ${
+              dashboardTab === "purchased"
+                ? "border-brand-accent text-brand-dark"
+                : "border-transparent text-brand-text-muted hover:text-brand-dark"
+            }`}
+          >
+            Purchased &amp; Published ({invitations.filter((i) => i.is_paid).length})
+          </button>
+        </div>
+
         {/* Invitations List */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
@@ -466,104 +501,107 @@ export default function DashboardPage() {
               </svg>
               <span className="text-xs text-brand-text-muted font-medium tracking-wide">Loading invitations…</span>
             </div>
-          ) : filteredInvitations.length === 0 ? (
-            <EmptyState />
+          ) : invitations.filter((inv) => dashboardTab === "drafts" ? !inv.is_paid : inv.is_paid).length === 0 ? (
+            <EmptyState tab={dashboardTab} />
           ) : (
             <ul className="divide-y divide-brand-border/40">
-              {filteredInvitations.map((item, idx) => {
-                const plan = PLAN_LABELS[item.tier?.toLowerCase()] ?? PLAN_LABELS.classic;
-                const currentFolder = invitationFolderMap[item.id] || "Unassigned";
-                return (
-                  <motion.li
-                    key={item.id ?? idx}
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, delay: idx * 0.06 }}
-                    className="group p-8 flex flex-col md:flex-row md:items-center justify-between gap-6 hover:bg-brand-bg-soft/30 transition-colors duration-300"
-                  >
-                    <div className="flex items-start gap-5">
-                      <div className="hidden sm:flex h-12 w-12 rounded-xl bg-brand-bg-soft border border-brand-border/60 items-center justify-center shrink-0">
-                        <svg className="h-5 w-5 text-brand-accent/50" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
-                        </svg>
-                      </div>
+              {invitations
+                .filter((inv) => dashboardTab === "drafts" ? !inv.is_paid : inv.is_paid)
+                .map((item, idx) => {
+                  const currentFolder = invitationFolderMap[item.id] || "Unassigned";
+                  return (
+                    <motion.li
+                      key={item.id ?? idx}
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3, delay: idx * 0.06 }}
+                      className="group p-8 flex flex-col md:flex-row md:items-center justify-between gap-6 hover:bg-brand-bg-soft/30 transition-colors duration-300"
+                    >
+                      <div className="flex items-start gap-5">
+                        <div className="hidden sm:flex h-12 w-12 rounded-xl bg-brand-bg-soft border border-brand-border/60 items-center justify-center shrink-0">
+                          <svg className="h-5 w-5 text-brand-accent/50" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
+                          </svg>
+                        </div>
 
-                      <div className="space-y-2">
-                        <div className="flex flex-wrap items-center gap-2.5">
-                          <h3 className="font-serif text-xl font-light text-brand-dark leading-tight">
-                            {item.couple_name || item.title || "Untitled Invitation"}
-                          </h3>
-                          <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-widest ${plan.cls}`}>
-                            {plan.label}
-                          </span>
-
-                          {/* Client folder label indicator */}
-                          {features.multi_client && (
-                            <span className="text-[10px] bg-zinc-100 text-zinc-550 border border-zinc-200 px-2 py-0.5 rounded-md font-semibold">
-                              📁 {currentFolder}
+                        <div className="space-y-2">
+                          <div className="flex flex-wrap items-center gap-2.5">
+                            <h3 className="font-serif text-xl font-light text-brand-dark leading-tight">
+                              {item.couple_name || "Untitled Invitation"}
+                            </h3>
+                            <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-widest bg-zinc-100 text-zinc-650 border border-zinc-200">
+                              {item.price === 0 ? "Free Template" : `Premium (₹${item.price})`}
                             </span>
-                          )}
-                        </div>
 
-                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-brand-text-muted">
-                          {item.template_name && (
-                            <span>Template: <strong className="text-brand-dark font-medium">{item.template_name}</strong></span>
-                          )}
-                          {item.event_date && (
-                            <>
-                              <span className="text-brand-border">·</span>
-                              <span>Date: <strong className="text-brand-dark font-medium">{new Date(item.event_date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</strong></span>
-                            </>
-                          )}
+                            {/* Client folder label indicator */}
+                            {features.multi_client && (
+                              <span className="text-[10px] bg-zinc-100 text-zinc-550 border border-zinc-200 px-2 py-0.5 rounded-md font-semibold">
+                                📁 {currentFolder}
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-brand-text-muted">
+                            {item.template_name && (
+                              <span>Template: <strong className="text-brand-dark font-medium">{item.template_name}</strong></span>
+                            )}
+                            {item.event_date && (
+                              <>
+                                <span className="text-brand-border">·</span>
+                                <span>Date: <strong className="text-brand-dark font-medium">{new Date(item.event_date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</strong></span>
+                              </>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    <div className="flex flex-wrap items-center gap-3 shrink-0">
-                      {/* Move to folder dropdown selector for agency planner users */}
-                      {features.multi_client && (
-                        <select
-                          value={invitationFolderMap[item.id] || "All"}
-                          onChange={(e) => handleMoveToFolder(item.id, e.target.value)}
-                          className="bg-white border border-brand-border/65 text-zinc-650 px-2.5 py-2 rounded-xl text-xs focus:outline-none"
+                      <div className="flex flex-wrap items-center gap-3 shrink-0">
+                        {/* Move to folder dropdown selector for agency planner users */}
+                        {features.multi_client && (
+                          <select
+                            value={invitationFolderMap[item.id] || "All"}
+                            onChange={(e) => handleMoveToFolder(item.id, e.target.value)}
+                            className="bg-white border border-brand-border/65 text-zinc-650 px-2.5 py-2 rounded-xl text-xs focus:outline-none"
+                          >
+                            <option value="All">Unassigned Client</option>
+                            {folders.filter(f => f !== "All").map(f => (
+                              <option key={f} value={f}>Move to {f}</option>
+                            ))}
+                          </select>
+                        )}
+
+                        <StatusPill isPaid={item.is_paid} />
+
+                        {item.is_paid && (
+                          <button
+                            onClick={() => setSelectedInviteSlug(item.slug)}
+                            className="bg-brand-bg border border-brand-border/60 hover:bg-brand-accent hover:border-brand-accent hover:text-white text-brand-dark font-bold py-2.5 px-5 rounded-xl text-xs uppercase tracking-wider transition-all duration-300 cursor-pointer"
+                          >
+                            Guest RSVPs
+                          </button>
+                        )}
+
+                        {item.slug && item.is_paid && (
+                          <a
+                            href={`/i/${item.slug}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="bg-brand-bg border border-brand-border/60 hover:bg-brand-accent hover:border-brand-accent hover:text-white text-brand-dark font-bold py-2.5 px-5 rounded-xl text-xs uppercase tracking-wider transition-all duration-300"
+                          >
+                            View Live
+                          </a>
+                        )}
+
+                        <Link
+                          href={`/editor/${item.slug || item.id}`}
+                          className="bg-brand-dark hover:bg-brand-accent text-brand-bg font-bold py-2.5 px-5 rounded-xl text-xs uppercase tracking-wider transition-colors duration-300"
                         >
-                          <option value="All">Unassigned Client</option>
-                          {folders.filter(f => f !== "All").map(f => (
-                            <option key={f} value={f}>Move to {f}</option>
-                          ))}
-                        </select>
-                      )}
-
-                      <StatusPill status={item.status} />
-
-                      <button
-                        onClick={() => setSelectedInviteSlug(item.slug)}
-                        className="bg-brand-bg border border-brand-border/60 hover:bg-brand-accent hover:border-brand-accent hover:text-white text-brand-dark font-bold py-2.5 px-5 rounded-xl text-xs uppercase tracking-wider transition-all duration-300 cursor-pointer"
-                      >
-                        Guest RSVPs
-                      </button>
-
-                      {item.slug && (
-                        <a
-                          href={`/i/${item.slug}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="bg-brand-bg border border-brand-border/60 hover:bg-brand-accent hover:border-brand-accent hover:text-white text-brand-dark font-bold py-2.5 px-5 rounded-xl text-xs uppercase tracking-wider transition-all duration-300"
-                        >
-                          View Live
-                        </a>
-                      )}
-
-                      <Link
-                        href={`/editor/${item.slug || item.id}`}
-                        className="bg-brand-dark hover:bg-brand-accent text-brand-bg font-bold py-2.5 px-5 rounded-xl text-xs uppercase tracking-wider transition-colors duration-300"
-                      >
-                        Edit
-                      </Link>
-                    </div>
-                  </motion.li>
-                );
-              })}
+                          {item.is_paid ? "Edit" : "Resume Customization"}
+                        </Link>
+                      </div>
+                    </motion.li>
+                  );
+                })}
             </ul>
           )}
         </motion.div>

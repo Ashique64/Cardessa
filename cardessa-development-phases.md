@@ -2,6 +2,7 @@
 
 > **Platform:** Digital Wedding Invitation Platform (Live Web App Only)
 > **Stack:** Next.js + Django REST Framework + PostgreSQL + DigitalOcean + Vercel + Razorpay
+> **Pricing Model:** Transaction-based Template Purchases (One-Time Layout Unlock, Free/Premium Templates)
 
 ---
 
@@ -47,13 +48,11 @@ Phase 3    →  Agency / White-Label Tier & Domains (3–4 weeks)
 | Model | Key Fields | Description |
 |---|---|---|
 | `User` | email, name, is_superuser, is_staff, created_at | Core User identity with admin capability flags |
-| `Template` | name, slug, tier (Classic / Royal), style, description, icon, is_active | Created by Admin. Only active templates are shown to users |
-| `Invitation` | user, template, slug (unique preview ID), title, groom_name, bride_name, event_date, event_time, venue_name, venue_address, bg_color, accent_color, music_enabled, is_published | Created by User from an admin template |
+| `Template` | name, slug, component_key, price_inr, is_new, description, field_schema, demo_content, is_active | Individual template pricing/metadata (999 INR default, is_new tag) |
+| `Invitation` | user, template, slug (unique preview ID), content JSON, is_paid, is_published | Draft customizations and is_paid unlock tracking |
 | `RSVP` | invitation, guest_name, email, phone, status (Attending / Declined), guest_count, message, created_at | Saved when guests respond on the live invitation |
-| `Plan` | name, price_inr, billing_type, max_invitations, features JSON | Billing configurations |
-| `Order` | user, plan, razorpay_order_id, razorpay_payment_id, status, created_at | Keeps track of payment conversions |
-
-> **Note:** `Template` and `Invitation` are fixed to one design shape (`Ivory Bloom`). This works for Phase 1's single-template MVP but doesn't scale to multiple visually distinct templates (Floral Arch, Premium Gold, Wax Seal, Scratch Reveal, etc.), where each design needs different editable fields. See **Phase 1.5** below for the model changes that fix this before Phase 2 work builds on top of it.
+| `Plan` | name, price_inr, billing_type, max_invitations, features JSON | Billing configurations (legacy support) |
+| `Order` | user, invitation, plan (nullable), razorpay_order_id, razorpay_payment_id, status, amount_inr, created_at | Tracks payment unlocks for specific invitations |
 
 ---
 
@@ -82,16 +81,15 @@ Phase 3    →  Agency / White-Label Tier & Domains (3–4 weeks)
 | Route | Description | Gated? |
 |---|---|---|
 | `/` | Marketing & landing page | No |
-| `/login` | Login page with toggle show/hide | No |
+| `/login` | Login page (Credentials only, no Google Auth) | No |
 | `/register` | Sign-up page with check-toggles | No |
-| `/templates` | Gallery showing active templates | No |
-| `/templates/[slug]` | Interactive preview demo (Wax seal, Scratch Date, Map) | Gated (plan required, admin bypass) |
-| `/pricing` | Choose pricing tier | No |
-| `/checkout` | Razorpay payment modal | Gated (auth required) |
-| `/dashboard` | User dashboard (List invitation pages, view RSVP counts) | Gated (auth required) |
-| `/editor/[slug]` | Split-screen editor (Content + Design tab with real-time phone preview) | Gated (auth required) |
+| `/templates` | Gallery showing active templates with price tags and price filters | No |
+| `/templates/[slug]` | Interactive preview demo (Wax seal, Scratch Date, Map) | No |
+| `/how-it-works` | Explains the 4-step wizard process (replaces pricing) | No |
+| `/dashboard` | User dashboard (Divided into Edited Drafts vs Purchased Active tabs) | Gated (auth required) |
+| `/editor/[slug]` | Step-by-step 4-step wizard editor with real-time phone preview | Gated (auth required) |
 | `/i/[slug]` | **Public invitation page** with waxy seal cover & RSVP form | No |
-| `/admin` | Super Admin console (Users, Orders, Metrics) | Gated (admin required) |
+| `/admin` | Super Admin console (Users, Template-based Orders, Metrics) | Gated (admin required) |
 
 ---
 
@@ -108,11 +106,15 @@ Phase 3    →  Agency / White-Label Tier & Domains (3–4 weeks)
 
 ---
 
-## Phase 1.5 — Dynamic Multi-Template Engine (Schema-Driven)
+## Phase 1.5 — Dynamic Multi-Template Engine (Coded Components + Content Schema)
 
-> **Goal:** Move from one hardcoded design (`Ivory Bloom`) to a system that supports many visually distinct, independently animated templates (Floral Arch, Premium Gold, Crimson Bliss, Begin Forever, Garden Swing, etc.), where each template is a real coded design but its **content** is user-editable through one generic editor — matching the Invytor gallery model. This phase sits between Phase 1 and Phase 2 because Phase 2's "Active Template Swapping" and multi-language fields depend on `Invitation` content being generic rather than fixed columns.
+> **Goal:** Build Invytor-style editable templates in Cardessa where each template is a coded component + a content schema, rather than trying to describe layout/animations dynamically in free-text JSON.
 
-**Why not a drag-and-drop builder instead:** Invytor's templates are bespoke animated designs (wax-seal reveal, gold particle frame, scratch card, floral bloom) — a generic "position boxes on a canvas" builder can't reproduce that without becoming a Canva-scale project. The pattern below — one React component per template + one JSON schema per template — is what lets each design stay fully custom while content editing stays generic.
+### The Core Design Pattern
+- **Each template = one hand-built React component (the design/animation) + one JSON schema (which parts of it are user-editable).**
+- Stop trying to describe animations in JSON. Describe editable content fields instead.
+- Add a `component_key` mapping (e.g. `floral-arch`) that tells Next.js which coded component to render dynamically via a component registry map (`registry.js`).
+- The generic editor renders controls driven entirely by `field_schema.fields`, and saves to `Invitation.content`.
 
 ---
 
@@ -258,3 +260,37 @@ This becomes the repeatable loop for adding new designs to the gallery:
 - [x] White-labeled custom domain mapping (`invite.couple.com`)
 - [x] AI-powered text helper inside editor content fields
 - [x] Multi-client invitations organization for event planners
+
+---
+
+## Transactional Pivot Upgrade — Template-Based Model
+
+> **Goal:** Pivot the platform from plans (Classic/Royal subscription tiers) to a transaction-based model where templates have individual prices (including Free templates), and users edit via a step-by-step wizard.
+
+### Database Updates
+- [x] **Template Model**: Added `price_inr` and `is_new`.
+- [x] **Invitation Model**: Added `is_paid` column.
+- [x] **Order Model**: Added `invitation` ForeignKey (nullable `plan` for legacy compatibility).
+
+### Backend APIs & Order Verification
+- [x] Filter templates by price (`?price=free|premium`) and sort by newest (`?sort=newest`).
+- [x] Auto-initialize invitation draft `content` with template `demo_content` upon template selection.
+- [x] Automated Razorpay verification bypass for mock signatures in local development.
+- [x] Immediate activation and publication for `price_inr = 0` (free) templates.
+
+### Frontend Pages
+- [x] **Remove Google Auth**: Removed login integration to focus on standard credential sign-ins.
+- [x] **"How It Works" Page**: Replaced "/pricing" with a custom explanation page describing the 4-step wizard:
+  1. *Select & Customize*
+  2. *Media & Features*
+  3. *Interactive Preview*
+  4. *Pay & Share*
+- [x] **Homepage Showcase**: Replaced subscription grids with a dynamic "Featured Designs" templates collection.
+- [x] **Templates Page**: Added price badges, price filter pills, and sorting controls. Clicking "Use Design" creates a draft invitation immediately and redirects to the editor.
+- [x] **4-Step Editor Wizard**:
+  - *Step 1*: Edit ceremony details, set bride/groom display order, choose event time/venue/Google Map links, and select welcome note presets based on event type (Wedding, Nikah, Engagement, etc.).
+  - *Step 2*: Upload cover photo (aspect ratio 4:5), manage interactive gallery slideshow photos (4 to 8 slides), toggle RSVP guest counts, and edit couples story.
+  - *Step 3*: Live mobile iframe preview check.
+  - *Step 4*: Receipt calculation, automated mock payment triggers, and unique live URL generation.
+- [x] **User Dashboard Tabs**: Separated drafts ("Edited Designs") and paid invitations ("Purchased & Published") in separate tabs with dedicated empty state prompts.
+- [x] **Admin Orders Log**: Replaced plan column with "Product / Template" names and fixed decimal rupee formatting.

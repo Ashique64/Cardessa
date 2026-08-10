@@ -25,7 +25,7 @@ def validate_content_against_schema(content: dict, field_schema: dict) -> None:
         return
 
     schema_fields = field_schema["fields"]
-    schema_keys = {f["key"] for f in schema_fields}
+    schema_keys = {f["key"] for f in schema_fields} | {"hide_branding"}
 
     # 1. Reject completely unknown keys (prevents content pollution)
     unknown = set(content.keys()) - schema_keys
@@ -88,17 +88,21 @@ class InvitationSerializer(serializers.ModelSerializer):
     """Used for create, retrieve, and partial update (PATCH)."""
 
     hide_branding = serializers.SerializerMethodField()
+    couple_name = serializers.SerializerMethodField()
+    template_name = serializers.CharField(source="template.name", read_only=True)
+    status = serializers.SerializerMethodField()
+    price = serializers.IntegerField(source="template.price_inr", read_only=True)
 
     class Meta:
         model = Invitation
         fields = [
-            "id", "slug", "template",
+            "id", "slug", "template", "template_name", "couple_name", "price",
             "content",      # Phase 1.5: schema-driven content dict
             "config",       # Legacy — kept for backward compat, read-only via API
             "event_date",
-            "is_published", "custom_subdomain", "custom_domain",
+            "is_published", "is_paid", "custom_subdomain", "custom_domain",
             "created_at", "updated_at",
-            "hide_branding",
+            "hide_branding", "status",
         ]
         read_only_fields = ["id", "slug", "config", "created_at", "updated_at"]
 
@@ -119,6 +123,16 @@ class InvitationSerializer(serializers.ModelSerializer):
             return obj.content.get("hide_branding", False) == True
 
         return False
+
+    def get_couple_name(self, obj):
+        bride = obj.content.get("bride_name", "")
+        groom = obj.content.get("groom_name", "")
+        if bride and groom:
+            return f"{bride} & {groom}"
+        return bride or groom or "Untitled Invitation"
+
+    def get_status(self, obj):
+        return "published" if obj.is_published else "draft"
 
     def validate(self, attrs):
         """Validate content against the template's field_schema on create and PATCH."""
@@ -156,19 +170,22 @@ class InvitationPublicSerializer(serializers.ModelSerializer):
     template_slug = serializers.SlugRelatedField(
         source="template", slug_field="slug", read_only=True
     )
+    template_name = serializers.CharField(source="template.name", read_only=True)
     component_key = serializers.CharField(source="template.component_key", read_only=True)
     field_schema = serializers.JSONField(source="template.field_schema", read_only=True)
     animation_config = serializers.JSONField(source="template.animation_config", read_only=True)
+    couple_name = serializers.SerializerMethodField()
+    status = serializers.SerializerMethodField()
 
     hide_branding = serializers.SerializerMethodField()
 
     class Meta:
         model = Invitation
         fields = [
-            "slug", "template_slug", "component_key",
+            "slug", "template_slug", "template_name", "component_key",
             "field_schema", "animation_config",
-            "content", "config", "event_date", "is_published",
-            "hide_branding",
+            "content", "config", "event_date", "is_published", "is_paid",
+            "hide_branding", "couple_name", "status",
         ]
 
     def get_hide_branding(self, obj):
@@ -188,6 +205,16 @@ class InvitationPublicSerializer(serializers.ModelSerializer):
             return obj.content.get("hide_branding", False) == True
 
         return False
+
+    def get_couple_name(self, obj):
+        bride = obj.content.get("bride_name", "")
+        groom = obj.content.get("groom_name", "")
+        if bride and groom:
+            return f"{bride} & {groom}"
+        return bride or groom or "Untitled Invitation"
+
+    def get_status(self, obj):
+        return "published" if obj.is_published else "draft"
 
 
 class RSVPSerializer(serializers.ModelSerializer):
