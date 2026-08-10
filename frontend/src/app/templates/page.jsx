@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { useAuth } from "@/context/AuthContext";
-import { ordersApi } from "@/lib/api";
+import apiClient, { ordersApi } from "@/lib/api";
 
 const API = process.env.NEXT_PUBLIC_API_URL;
 
@@ -76,25 +76,13 @@ export default function TemplatesPage() {
     if (!user) { router.push("/login"); return; }
     setLoadingSlug(tpl.slug);
     try {
-      const token = localStorage.getItem("access_token");
-      const res = await fetch(`${API}/invitations/`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          template: tpl.id
-        })
+      const res = await apiClient.post("/invitations/", {
+        template: tpl.id
       });
-      if (res.ok) {
-        const newInvite = await res.json();
-        router.push(`/editor/${newInvite.slug}`);
-      } else {
-        alert("Failed to initialize design editor.");
-      }
-    } catch {
-      alert("Error starting editor session.");
+      router.push(`/editor/${res.data.slug}`);
+    } catch (err) {
+      console.error(err);
+      alert("Failed to initialize design editor.");
     } finally {
       setLoadingSlug(null);
     }
