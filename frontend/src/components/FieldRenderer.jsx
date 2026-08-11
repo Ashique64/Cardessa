@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useRef, useState } from "react";
+import CustomSelect from "./CustomSelect";
 
 // ─── Shared input style ──────────────────────────────────────────────────────
 const inputCls =
@@ -84,23 +85,16 @@ function ToggleField({ field, value, onChange }) {
 function SelectField({ field, value, onChange }) {
   const options = field.options || [];
   return (
-    <select
-      id={`field-${field.key}`}
+    <CustomSelect
       value={value ?? ""}
-      onChange={(e) => onChange(e.target.value)}
-      className={inputCls}
-    >
-      <option value="">Select {field.label}…</option>
-      {options.map((opt) => {
+      onChange={onChange}
+      options={options.map((opt) => {
         const v = typeof opt === "object" ? opt.value : opt;
         const l = typeof opt === "object" ? opt.label : opt;
-        return (
-          <option key={v} value={v}>
-            {l}
-          </option>
-        );
+        return { value: v, label: l };
       })}
-    </select>
+      placeholder={`Select ${field.label}…`}
+    />
   );
 }
 

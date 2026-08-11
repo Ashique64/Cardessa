@@ -8,6 +8,7 @@ import { ordersApi } from "@/lib/api";
 import { motion, AnimatePresence } from "framer-motion";
 import FieldRenderer from "@/components/FieldRenderer";
 import TemplateRenderer from "@/components/TemplateRenderer";
+import CustomSelect from "@/components/CustomSelect";
 
 // ─── Autosave debounce hook ──────────────────────────────────────────────────
 function useAutosave(value, saveFn, delay = 1000) {
@@ -50,7 +51,12 @@ export default function EditorPage() {
   const router = useRouter();
   const { user, isLoading: authLoading } = useAuth();
   const [step, setStep] = useState(1);
+  const [maxAllowedStep, setMaxAllowedStep] = useState(1);
   const [isPaid, setIsPaid] = useState(false);
+  const [checkingAccess, setCheckingAccess] = useState(true);
+  const [showPhonePreview, setShowPhonePreview] = useState(false);
+
+
 
   // Template & invitation meta
   const [template, setTemplate] = useState(null);
@@ -84,6 +90,43 @@ export default function EditorPage() {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiVariations, setAiVariations] = useState([]);
   const [aiSelectedField, setAiSelectedField] = useState("");
+
+  const isStep1Complete = useCallback(() => {
+    return !!(
+      content.bride_name?.trim() &&
+      content.groom_name?.trim() &&
+      content.event_date &&
+      content.venue_name?.trim() &&
+      content.venue_address?.trim()
+    );
+  }, [content]);
+
+  const handleNavigateStep = useCallback((targetStep) => {
+    if (targetStep === 1) {
+      setStep(1);
+    } else if (targetStep === 2) {
+      if (isStep1Complete()) {
+        setMaxAllowedStep(prev => Math.max(prev, 2));
+        setStep(2);
+      } else {
+        alert("Please fill in all compulsory fields marked with * first.");
+      }
+    } else if (targetStep === 3) {
+      if (isStep1Complete() && maxAllowedStep >= 2) {
+        setMaxAllowedStep(prev => Math.max(prev, 3));
+        setStep(3);
+      } else {
+        alert("Please complete the previous steps first.");
+      }
+    } else if (targetStep === 4) {
+      if (isStep1Complete() && maxAllowedStep >= 3) {
+        setMaxAllowedStep(prev => Math.max(prev, 4));
+        setStep(4);
+      } else {
+        alert("Please complete the previous steps first.");
+      }
+    }
+  }, [isStep1Complete, maxAllowedStep]);
 
   // Welcome note presets
   const presets = {
@@ -147,7 +190,7 @@ export default function EditorPage() {
             const list = Array.isArray(userInvs) ? userInvs : userInvs.results ?? [];
             const existing = list.find(inv => inv.template === tpl.id);
             if (existing) {
-              router.push(`/editor/${existing.slug}`);
+               router.push(`/editor/${existing.slug}`);
               return;
             }
           }
@@ -191,6 +234,28 @@ export default function EditorPage() {
             ? invite.content
             : invite.config || {};
         setContent(savedContent);
+
+        if (invite.is_paid) {
+          setMaxAllowedStep(4);
+        } else {
+          const step1Ok = !!(
+            savedContent.bride_name?.trim() &&
+            savedContent.groom_name?.trim() &&
+            savedContent.event_date &&
+            savedContent.venue_name?.trim() &&
+            savedContent.venue_address?.trim()
+          );
+          if (step1Ok) {
+            const hasMedia = !!(savedContent.couple_photo || savedContent.music_url || savedContent.our_story);
+            if (hasMedia) {
+              setMaxAllowedStep(3);
+            } else {
+              setMaxAllowedStep(2);
+            }
+          } else {
+            setMaxAllowedStep(1);
+          }
+        }
 
         // Prefill AI helper inputs if details exist
         setAiGroom(savedContent.groom_name || "");
@@ -404,7 +469,12 @@ export default function EditorPage() {
 
   const componentKey = template?.component_key || "ivory-bloom";
   const schemaFields = fieldSchema?.fields || [];
-  const editableTextFields = schemaFields.filter(f => f.type === "text" || f.type === "textarea");
+  const editableTextFields = [
+    { key: "welcome_note",        label: "Welcome Note" },
+    { key: "our_story",           label: "Our Story" },
+    { key: "attribution_heading", label: "Attribution Heading" },
+    { key: "attribution_names",   label: "Attribution Names" },
+  ];
 
   // Build unique shareable link
   const shareableLink = typeof window !== "undefined" ? `${window.location.origin}/i/${slug}` : `/i/${slug}`;
@@ -413,7 +483,7 @@ export default function EditorPage() {
     <div className="min-h-screen bg-zinc-100 flex flex-col font-sans select-none relative">
 
       {/* ── Header ── */}
-      <header className="bg-white border-b border-zinc-200 py-3.5 px-6 flex justify-between items-center z-10 shrink-0">
+      <header className="sticky top-0 bg-white border-b border-zinc-200 py-3.5 px-6 flex justify-between items-center z-30 shrink-0 shadow-xs">
         <div className="flex items-center gap-4">
           <Link href="/dashboard" className="text-sm font-medium text-zinc-550 hover:text-zinc-950 transition">
             ← Dashboard
@@ -430,6 +500,13 @@ export default function EditorPage() {
         </div>
 
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowPhonePreview(true)}
+            className="bg-[#6B8E70]/10 hover:bg-[#6B8E70]/20 text-[#6B8E70] font-semibold px-4 py-2 rounded-xl text-xs flex items-center gap-1.5 border border-[#6B8E70]/20 transition cursor-pointer"
+          >
+            <span>📱</span> Preview Design
+          </button>
+
           {features.ai_assistant && (
             <button
               onClick={() => setShowAiCopilot(true)}
@@ -453,236 +530,354 @@ export default function EditorPage() {
       </header>
 
       {/* ── Editor Container ── */}
-      <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
-        {/* Left Side: Settings Panel */}
-        <aside className="w-full md:w-[420px] bg-white border-r border-zinc-200 flex flex-col shrink-0 overflow-hidden">
-          {/* Wizard Step Navigation */}
-          <div className="flex border-b border-zinc-100 text-[11px] font-bold uppercase tracking-wider shrink-0 bg-zinc-50/50">
-            {[
-              { id: 1, label: "Customize" },
-              { id: 2, label: "Media" },
-              { id: 3, label: "Preview" },
-              { id: 4, label: "Publish" }
-            ].map((s) => (
-              <button
-                key={s.id}
-                onClick={() => setStep(s.id)}
-                className={`flex-1 py-3 text-center border-b-2 transition-colors ${
-                  step === s.id
-                    ? "border-zinc-900 text-zinc-950 bg-white"
-                    : "border-transparent text-zinc-400 hover:text-zinc-600"
-                }`}
-              >
-                {s.label}
-              </button>
-            ))}
+      <div className="flex-1 flex flex-col gap-5 p-5 bg-zinc-100 max-w-7xl mx-auto w-full items-start">
+        {/* Main Settings Panel (Centered layout) */}
+        <aside className="w-full max-w-4xl mx-auto bg-white border border-zinc-200/80 rounded-3xl shadow-2xs flex flex-col shrink-0 overflow-hidden">
+          {/* Wizard Step Timeline */}
+          <div className="flex items-center justify-center py-6 px-4 bg-zinc-50/50 border-b border-zinc-100 shrink-0">
+            <div className="flex items-center w-full max-w-lg justify-between relative">
+              {/* Progress Line Background */}
+              <div className="absolute top-[18px] left-[5%] right-[5%] h-0.5 bg-zinc-200 -z-0" />
+              
+              {[
+                { id: 1, label: "Customize" },
+                { id: 2, label: "Media" },
+                { id: 3, label: "Preview" },
+                { id: 4, label: "Publish" }
+              ].map((s, idx) => {
+                const isActive = step === s.id;
+                const isPassed = step > s.id;
+                const isClickable = s.id === 1 || isPaid || (s.id <= maxAllowedStep && isStep1Complete());
+                
+                return (
+                  <div key={s.id} className="flex flex-col items-center relative z-10 flex-1">
+                    <button
+                      type="button"
+                      disabled={!isClickable}
+                      onClick={() => handleNavigateStep(s.id)}
+                      className={`h-9 w-9 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
+                        isActive
+                          ? "bg-[#6B8E70] text-white ring-4 ring-[#6B8E70]/20 shadow-md cursor-pointer"
+                          : isClickable
+                          ? "bg-[#6B8E70]/80 text-white hover:bg-[#6B8E70] cursor-pointer"
+                          : "bg-zinc-200 text-zinc-500 cursor-not-allowed"
+                      }`}
+                    >
+                      {s.id}
+                    </button>
+                    <span className={`text-[9px] font-bold uppercase tracking-wider mt-2 transition-colors ${
+                      isActive ? "text-[#6B8E70]" : "text-zinc-400"
+                    }`}>
+                      {s.label}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          <div className="p-6 space-y-6">
             {/* STEP 1: CUSTOMIZE DETAILS */}
             {step === 1 && (
-              <div className="space-y-5">
-                <h3 className="font-serif text-lg text-zinc-900 border-b pb-2">1. Ceremony Details</h3>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-600">Bride Name</label>
-                    <input
-                      type="text"
-                      value={content.bride_name || ""}
-                      onChange={(e) => setContent(prev => ({ ...prev, bride_name: e.target.value }))}
-                      placeholder="Bride's Name"
-                      className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-3 text-xs focus:outline-none focus:border-zinc-900"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-600">Groom Name</label>
-                    <input
-                      type="text"
-                      value={content.groom_name || ""}
-                      onChange={(e) => setContent(prev => ({ ...prev, groom_name: e.target.value }))}
-                      placeholder="Groom's Name"
-                      className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-3 text-xs focus:outline-none focus:border-zinc-900"
-                    />
-                  </div>
-                </div>
+              <div className="space-y-6">
+                <h3 className="font-serif text-lg text-zinc-900 border-b pb-2">1. Customize & Styles</h3>
 
-                <div className="space-y-1.5">
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-600">Display Order</label>
-                  <select
-                    value={content.name_display_order || "bride_first"}
-                    onChange={(e) => setContent(prev => ({ ...prev, name_display_order: e.target.value }))}
-                    className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-3 text-xs focus:outline-none focus:border-zinc-900"
-                  >
-                    <option value="bride_first">Bride Name First</option>
-                    <option value="groom_first">Groom Name First</option>
-                  </select>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-600">Ceremony Type</label>
-                  <select
-                    value={content.ceremony_type || "Wedding"}
-                    onChange={(e) => setContent(prev => ({ ...prev, ceremony_type: e.target.value }))}
-                    className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-3 text-xs focus:outline-none focus:border-zinc-900"
-                  >
-                    <option value="Wedding">Wedding</option>
-                    <option value="Engagement">Engagement</option>
-                    <option value="Nikah">Nikah</option>
-                    <option value="Sangeet">Sangeet</option>
-                    <option value="Other">Other Event</option>
-                  </select>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4 border-t pt-4">
-                  <div className="space-y-1.5">
-                    <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-600">Bride Parents (Opt)</label>
-                    <input
-                      type="text"
-                      value={content.bride_parents || ""}
-                      onChange={(e) => setContent(prev => ({ ...prev, bride_parents: e.target.value }))}
-                      placeholder="Mr. & Mrs. Parent"
-                      className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-3 text-xs focus:outline-none focus:border-zinc-900"
-                    />
+                {/* Color Theme Selector */}
+                <div className="space-y-3 bg-zinc-50 border border-zinc-200/60 p-5 rounded-2xl">
+                  <div>
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-zinc-700">Invitation Color Theme</h4>
+                    <p className="text-[10px] text-zinc-400 mt-0.5">Customize the color scheme of your digital invitation card.</p>
                   </div>
-                  <div className="space-y-1.5">
-                    <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-600">Groom Parents (Opt)</label>
-                    <input
-                      type="text"
-                      value={content.groom_parents || ""}
-                      onChange={(e) => setContent(prev => ({ ...prev, groom_parents: e.target.value }))}
-                      placeholder="Mr. & Mrs. Parent"
-                      className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-3 text-xs focus:outline-none focus:border-zinc-900"
-                    />
+                  
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                    {[
+                      { name: "Sage Botanical", accent: "#6B8E70", bg: "#F6F4F0" },
+                      { name: "Obsidian Gold", accent: "#D4AF37", bg: "#121212" },
+                      { name: "Earthy Terracotta", accent: "#C97A63", bg: "#FAF6F0" },
+                      { name: "Burgundy Classic", accent: "#8E3B46", bg: "#FBF8F3" },
+                      { name: "Midnight Sapphire", accent: "#4A6FA5", bg: "#F4F7FA" },
+                    ].map((pal) => {
+                      const isSelected = content.accent_color === pal.accent && content.bg_color === pal.bg;
+                      return (
+                        <button
+                          key={pal.name}
+                          type="button"
+                          onClick={() => setContent(prev => ({ ...prev, accent_color: pal.accent, bg_color: pal.bg }))}
+                          className={`flex flex-col items-center justify-center p-2 rounded-xl border transition-all cursor-pointer ${
+                            isSelected ? "border-zinc-900 bg-white ring-2 ring-zinc-900/10 shadow-xs" : "border-zinc-250 bg-white/50 hover:bg-white"
+                          }`}
+                        >
+                          <div className="flex gap-1 mb-1.5">
+                            <div className="h-4 w-4 rounded-full border border-zinc-350/30 shadow-2xs" style={{ backgroundColor: pal.bg }} />
+                            <div className="h-4 w-4 rounded-full border border-zinc-350/30 shadow-2xs" style={{ backgroundColor: pal.accent }} />
+                          </div>
+                          <span className="text-[9px] font-semibold text-zinc-650 truncate max-w-full text-center leading-none">
+                            {pal.name}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Custom Pickers */}
+                  <div className="flex items-center gap-6 pt-2 border-t border-zinc-200/60">
+                    <div className="flex items-center gap-2">
+                      <label className="text-[10px] font-bold text-zinc-550 uppercase tracking-wider">Accent:</label>
+                      <div className="relative h-6 w-9 rounded-lg border border-zinc-300 overflow-hidden cursor-pointer">
+                        <input
+                          type="color"
+                          value={content.accent_color || "#6B8E70"}
+                          onChange={(e) => setContent(prev => ({ ...prev, accent_color: e.target.value }))}
+                          className="absolute inset-0 h-full w-full opacity-0 cursor-pointer"
+                        />
+                        <div className="h-full w-full" style={{ backgroundColor: content.accent_color || "#6B8E70" }} />
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <label className="text-[10px] font-bold text-zinc-550 uppercase tracking-wider">Background:</label>
+                      <div className="relative h-6 w-9 rounded-lg border border-zinc-300 overflow-hidden cursor-pointer">
+                        <input
+                          type="color"
+                          value={content.bg_color || "#F6F4F0"}
+                          onChange={(e) => setContent(prev => ({ ...prev, bg_color: e.target.value }))}
+                          className="absolute inset-0 h-full w-full opacity-0 cursor-pointer"
+                        />
+                        <div className="h-full w-full" style={{ backgroundColor: content.bg_color || "#F6F4F0" }} />
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                <h3 className="font-serif text-lg text-zinc-900 border-b pb-2 pt-4">2. Date, Time & Venue</h3>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-600">Event Date</label>
-                    <input
-                      type="date"
-                      value={content.event_date || ""}
-                      onChange={(e) => setContent(prev => ({ ...prev, event_date: e.target.value }))}
-                      className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-3 text-xs focus:outline-none focus:border-zinc-900"
-                    />
+                {/* Grid container for inputs to prevent scrolling */}
+                <div className="bg-white border border-zinc-150 p-5 rounded-2xl space-y-5">
+                  <h4 className="font-serif text-sm text-zinc-800 border-b pb-1.5">2. Ceremony Details</h4>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-600">
+                        Bride Name <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={content.bride_name || ""}
+                        onChange={(e) => setContent(prev => ({ ...prev, bride_name: e.target.value }))}
+                        placeholder="Bride's Name"
+                        className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-3 text-xs focus:outline-none focus:border-zinc-950 focus:bg-white transition-all"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-600">
+                        Groom Name <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={content.groom_name || ""}
+                        onChange={(e) => setContent(prev => ({ ...prev, groom_name: e.target.value }))}
+                        placeholder="Groom's Name"
+                        className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-3 text-xs focus:outline-none focus:border-zinc-950 focus:bg-white transition-all"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-600">Display Order</label>
+                      <CustomSelect
+                        value={content.name_display_order || "bride_first"}
+                        onChange={(val) => setContent(prev => ({ ...prev, name_display_order: val }))}
+                        options={[
+                          { value: "bride_first", label: "Bride Name First" },
+                          { value: "groom_first", label: "Groom Name First" },
+                        ]}
+                      />
+                    </div>
                   </div>
-                  <div className="space-y-1.5">
-                    <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-600">Event Time</label>
-                    <input
-                      type="time"
-                      value={content.event_time || ""}
-                      onChange={(e) => setContent(prev => ({ ...prev, event_time: e.target.value }))}
-                      className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-3 text-xs focus:outline-none focus:border-zinc-900"
-                    />
-                  </div>
-                </div>
 
-                <div className="space-y-1.5">
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-600">End Time (Optional)</label>
-                  <input
-                    type="time"
-                    value={content.end_date_time || ""}
-                    onChange={(e) => setContent(prev => ({ ...prev, end_date_time: e.target.value }))}
-                    className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-3 text-xs focus:outline-none"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-600">Venue Name</label>
-                  <input
-                    type="text"
-                    value={content.venue_name || ""}
-                    onChange={(e) => setContent(prev => ({ ...prev, venue_name: e.target.value }))}
-                    placeholder="Venue Hall Name"
-                    className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-3 text-xs focus:outline-none focus:border-zinc-900"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-600">Venue Address</label>
-                  <textarea
-                    value={content.venue_address || ""}
-                    onChange={(e) => setContent(prev => ({ ...prev, venue_address: e.target.value }))}
-                    placeholder="Street, City, State"
-                    rows="2"
-                    className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-3 text-xs focus:outline-none resize-none focus:border-zinc-900"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-600">Google Map Link (Optional)</label>
-                  <input
-                    type="text"
-                    value={content.google_map_link || ""}
-                    onChange={(e) => setContent(prev => ({ ...prev, google_map_link: e.target.value }))}
-                    placeholder="https://maps.google.com/..."
-                    className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-3 text-xs focus:outline-none focus:border-zinc-900"
-                  />
-                </div>
-
-                <h3 className="font-serif text-lg text-zinc-900 border-b pb-2 pt-4">3. Welcome Note & Attribution</h3>
-
-                <div className="space-y-3">
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-600">Welcome Note Presets</label>
-                  <div className="space-y-2">
-                    {currentPresets.map((preset, idx) => (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={() => setContent(prev => ({ ...prev, welcome_note: preset }))}
-                        className={`w-full text-left p-3 border rounded-xl text-xs transition-colors ${
-                          content.welcome_note === preset
-                            ? "bg-[#6B8E70]/10 border-[#6B8E70] text-zinc-900"
-                            : "bg-zinc-55/30 border-zinc-200 text-zinc-600 hover:bg-zinc-50"
-                        }`}
-                      >
-                        {preset}
-                      </button>
-                    ))}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-t pt-4">
+                    <div className="space-y-1.5">
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-600">Ceremony Type</label>
+                      <CustomSelect
+                        value={content.ceremony_type || "Wedding"}
+                        onChange={(val) => setContent(prev => ({ ...prev, ceremony_type: val }))}
+                        options={[
+                          { value: "Wedding", label: "Wedding" },
+                          { value: "Engagement", label: "Engagement" },
+                          { value: "Nikah", label: "Nikah" },
+                          { value: "Sangeet", label: "Sangeet" },
+                          { value: "Other", label: "Other Event" },
+                        ]}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-600">Bride Parents (Opt)</label>
+                      <input
+                        type="text"
+                        value={content.bride_parents || ""}
+                        onChange={(e) => setContent(prev => ({ ...prev, bride_parents: e.target.value }))}
+                        placeholder="Mr. & Mrs. Parent"
+                        className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-3 text-xs focus:outline-none focus:border-zinc-950 focus:bg-white transition-all"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-600">Groom Parents (Opt)</label>
+                      <input
+                        type="text"
+                        value={content.groom_parents || ""}
+                        onChange={(e) => setContent(prev => ({ ...prev, groom_parents: e.target.value }))}
+                        placeholder="Mr. & Mrs. Parent"
+                        className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-3 text-xs focus:outline-none focus:border-zinc-950 focus:bg-white transition-all"
+                      />
+                    </div>
                   </div>
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-600">Custom Welcome Note</label>
-                  <textarea
-                    value={content.welcome_note || ""}
-                    onChange={(e) => setContent(prev => ({ ...prev, welcome_note: e.target.value }))}
-                    placeholder="Or type your own greeting note here..."
-                    rows="3"
-                    className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-3 text-xs focus:outline-none resize-none focus:border-zinc-900"
-                  />
-                </div>
+                <div className="bg-white border border-zinc-150 p-5 rounded-2xl space-y-5">
+                  <h4 className="font-serif text-sm text-zinc-800 border-b pb-1.5">3. Date, Time & Venue</h4>
 
-                <div className="grid grid-cols-2 gap-4 border-t pt-4">
-                  <div className="space-y-1.5">
-                    <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-600">Attribution Heading</label>
-                    <input
-                      type="text"
-                      value={content.attribution_heading || "Best wishes"}
-                      onChange={(e) => setContent(prev => ({ ...prev, attribution_heading: e.target.value }))}
-                      placeholder="e.g. Best wishes"
-                      className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-3 text-xs focus:outline-none"
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-600">
+                        Event Date <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="date"
+                        value={content.event_date || ""}
+                        onChange={(e) => setContent(prev => ({ ...prev, event_date: e.target.value }))}
+                        className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-3 text-xs focus:outline-none focus:border-zinc-950 focus:bg-white transition-all"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-600">Event Time</label>
+                      <input
+                        type="time"
+                        value={content.event_time || ""}
+                        onChange={(e) => setContent(prev => ({ ...prev, event_time: e.target.value }))}
+                        className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-3 text-xs focus:outline-none focus:border-zinc-950 focus:bg-white transition-all"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-600">End Time (Optional)</label>
+                      <input
+                        type="time"
+                        value={content.end_date_time || ""}
+                        onChange={(e) => setContent(prev => ({ ...prev, end_date_time: e.target.value }))}
+                        className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-3 text-xs focus:outline-none focus:border-zinc-950 focus:bg-white transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t pt-4">
+                    <div className="space-y-1.5">
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-600">
+                        Venue Name <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={content.venue_name || ""}
+                        onChange={(e) => setContent(prev => ({ ...prev, venue_name: e.target.value }))}
+                        placeholder="Venue Hall Name"
+                        className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-3 text-xs focus:outline-none focus:border-zinc-950 focus:bg-white transition-all"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-600">Google Map Link (Optional)</label>
+                      <input
+                        type="text"
+                        value={content.google_map_link || ""}
+                        onChange={(e) => setContent(prev => ({ ...prev, google_map_link: e.target.value }))}
+                        placeholder="https://maps.google.com/..."
+                        className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-3 text-xs focus:outline-none focus:border-zinc-950 focus:bg-white transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5 border-t pt-4">
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-600">
+                      Venue Address <span className="text-red-500">*</span>
+                    </label>
+                    <textarea
+                      value={content.venue_address || ""}
+                      onChange={(e) => setContent(prev => ({ ...prev, venue_address: e.target.value }))}
+                      placeholder="Street, City, State"
+                      rows="2"
+                      className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-3 text-xs focus:outline-none resize-none focus:border-zinc-950 focus:bg-white transition-all"
                     />
                   </div>
-                  <div className="space-y-1.5">
-                    <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-600">Attribution Names</label>
-                    <input
-                      type="text"
-                      value={content.attribution_names || "Family & Friends"}
-                      onChange={(e) => setContent(prev => ({ ...prev, attribution_names: e.target.value }))}
-                      placeholder="e.g. Family & Friends"
-                      className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-3 text-xs focus:outline-none"
-                    />
+                </div>
+
+                <div className="bg-white border border-zinc-150 p-5 rounded-2xl space-y-5">
+                  <h4 className="font-serif text-sm text-zinc-800 border-b pb-1.5">4. Welcome Note & Attributions</h4>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-600">Welcome Note Presets</label>
+                      </div>
+                      <div className="space-y-2">
+                        {currentPresets.map((preset, idx) => (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => setContent(prev => ({ ...prev, welcome_note: preset }))}
+                            className={`w-full text-left p-2.5 border rounded-xl text-xs transition-all cursor-pointer ${
+                              content.welcome_note === preset
+                                ? "bg-[#6B8E70]/10 border-[#6B8E70] text-[#6B8E70] font-semibold"
+                                : "bg-zinc-50 border-zinc-200 text-zinc-600 hover:bg-zinc-100/50"
+                            }`}
+                          >
+                            {preset}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-600">Custom Welcome Note</label>
+                        <p className="text-[10px] text-zinc-400 italic">Or type your custom greeting</p>
+                      </div>
+                      <textarea
+                        value={content.welcome_note || ""}
+                        onChange={(e) => setContent(prev => ({ ...prev, welcome_note: e.target.value }))}
+                        placeholder="Type your own greeting note here..."
+                        rows="5"
+                        className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-3 text-xs focus:outline-none resize-none focus:border-zinc-950 focus:bg-white transition-all h-[115px]"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t pt-4">
+                    <div className="space-y-1.5">
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-600">Attribution Heading</label>
+                      <input
+                        type="text"
+                        value={content.attribution_heading || ""}
+                        onChange={(e) => setContent(prev => ({ ...prev, attribution_heading: e.target.value }))}
+                        placeholder={
+                          content.ceremony_type?.toLowerCase() === "nikah" ? "e.g. Barakallah" :
+                          content.ceremony_type?.toLowerCase() === "engagement" ? "e.g. Warm regards" :
+                          "e.g. Best wishes"
+                        }
+                        className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-3 text-xs focus:outline-none focus:border-zinc-950 focus:bg-white transition-all"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-600">Attribution Names</label>
+                      <input
+                        type="text"
+                        value={content.attribution_names || ""}
+                        onChange={(e) => setContent(prev => ({ ...prev, attribution_names: e.target.value }))}
+                        placeholder="e.g. Family & Friends"
+                        className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-3 text-xs focus:outline-none focus:border-zinc-950 focus:bg-white transition-all"
+                      />
+                    </div>
+                    <p className="col-span-1 md:col-span-2 text-[10px] text-zinc-400 italic mt-1 leading-none">
+                      Shown at the bottom of your invitation (e.g. "Best wishes", "Family & Friends")
+                    </p>
                   </div>
                 </div>
 
                 <button
                   type="button"
-                  onClick={() => setStep(2)}
-                  className="w-full bg-zinc-950 hover:bg-zinc-800 text-white font-bold py-3.5 rounded-xl text-xs uppercase tracking-wider mt-6 cursor-pointer"
+                  onClick={() => handleNavigateStep(2)}
+                  className="w-full bg-[#6B8E70] hover:bg-[#5f7d67] text-white font-bold py-4 rounded-xl text-xs uppercase tracking-wider mt-6 cursor-pointer transition-all shadow-sm"
                 >
                   Save and Continue →
                 </button>
@@ -826,14 +1021,14 @@ export default function EditorPage() {
                 <div className="flex gap-3 pt-4">
                   <button
                     type="button"
-                    onClick={() => setStep(1)}
+                    onClick={() => handleNavigateStep(1)}
                     className="flex-1 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 font-bold py-3.5 rounded-xl text-xs uppercase tracking-wider cursor-pointer"
                   >
                     ← Back
                   </button>
                   <button
                     type="button"
-                    onClick={() => setStep(3)}
+                    onClick={() => handleNavigateStep(3)}
                     className="flex-1 bg-zinc-950 hover:bg-zinc-800 text-white font-bold py-3.5 rounded-xl text-xs uppercase tracking-wider cursor-pointer"
                   >
                     Save & Preview →
@@ -858,13 +1053,13 @@ export default function EditorPage() {
 
                 <div className="space-y-3 pt-6 px-4">
                   <button
-                    onClick={() => setStep(1)}
+                    onClick={() => handleNavigateStep(1)}
                     className="w-full bg-zinc-100 hover:bg-zinc-200 text-zinc-800 font-bold py-3.5 rounded-xl text-xs uppercase tracking-wider cursor-pointer"
                   >
                     Edit Details
                   </button>
                   <button
-                    onClick={() => setStep(4)}
+                    onClick={() => handleNavigateStep(4)}
                     className="w-full bg-[#6B8E70] hover:bg-[#5f7d67] text-white font-bold py-3.5 rounded-xl text-xs uppercase tracking-wider cursor-pointer shadow-sm"
                   >
                     Publish Invitation
@@ -942,23 +1137,57 @@ export default function EditorPage() {
           </div>
         </aside>
 
-        {/* Right Side: Phone frame preview */}
-        <main className="flex-1 flex items-center justify-center p-8 overflow-hidden bg-zinc-100">
-          <div className="flex flex-col items-center gap-4">
-            <div className="w-80 h-162.5 rounded-[44px] shadow-2xl border-10 border-zinc-900 bg-white overflow-hidden relative">
-              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-24 h-6 bg-zinc-900 rounded-b-2xl z-20" />
-              <div className="h-full w-full overflow-y-auto">
-                <TemplateRenderer
-                  componentKey={componentKey}
-                  content={content}
-                  mode="editor"
-                  hideBranding={content.hide_branding && features.white_label}
-                />
-              </div>
+        {/* Floating Preview Trigger Button */}
+        <button
+          onClick={() => setShowPhonePreview(true)}
+          className="fixed bottom-6 right-6 z-40 bg-[#6B8E70] hover:bg-[#5f7d67] text-white font-bold px-5 py-3 rounded-full text-xs shadow-xl flex items-center gap-2 transition hover:scale-105 active:scale-95 duration-200 cursor-pointer"
+        >
+          <span>📱</span> Preview Invitation
+        </button>
+
+        {/* Phone Preview Overlay Modal */}
+        <AnimatePresence>
+          {showPhonePreview && (
+            <div 
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-6"
+              onClick={() => setShowPhonePreview(false)}
+            >
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                transition={{ type: "spring", damping: 25, stiffness: 350 }}
+                className="relative flex flex-col items-center gap-4"
+                onClick={(e) => e.stopPropagation()} // Prevent closing when clicking phone mockup
+              >
+                {/* Close button */}
+                <button
+                  onClick={() => setShowPhonePreview(false)}
+                  className="absolute -top-12 right-0 bg-white hover:bg-zinc-100 text-zinc-800 font-bold h-9 w-9 rounded-full flex items-center justify-center shadow-lg transition-all hover:scale-105 active:scale-95 cursor-pointer z-55 border border-zinc-200"
+                  title="Close Preview"
+                >
+                  ✕
+                </button>
+
+                <div className="w-80 h-[calc(100vh-110px)] max-h-[685px] min-h-[500px] rounded-[44px] shadow-2xl border-[11px] border-zinc-950 bg-white overflow-hidden relative">
+                  <div className="absolute top-0 left-1/2 -translate-x-1/2 w-26 h-5.5 bg-zinc-950 rounded-b-2xl z-20" />
+                  <div className="h-full w-full overflow-y-auto">
+                    <TemplateRenderer
+                      componentKey={componentKey}
+                      content={content}
+                      mode="editor"
+                      hideBranding={content.hide_branding && features.white_label}
+                    />
+                  </div>
+                </div>
+                
+                <span className="text-[10px] text-white/80 font-bold tracking-widest uppercase bg-black/40 px-3 py-1 rounded-full backdrop-blur-xs">
+                  Live Mobile Preview
+                </span>
+              </motion.div>
             </div>
-            <p className="text-xs text-zinc-400 font-medium tracking-wider uppercase">Live Preview Frame</p>
-          </div>
-        </main>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* ── AI Copilot Assistant Drawer Modal ── */}
@@ -1006,15 +1235,12 @@ export default function EditorPage() {
 
                 <div className="space-y-1.5">
                   <label className="block text-xs font-bold text-zinc-650 uppercase">Select Target Field to Fill</label>
-                  <select
+                  <CustomSelect
                     value={aiSelectedField}
-                    onChange={(e) => setAiSelectedField(e.target.value)}
-                    className="w-full bg-zinc-50 border border-zinc-200 rounded-xl py-2.5 px-3 text-sm focus:outline-none"
-                  >
-                    {editableTextFields.map(f => (
-                      <option key={f.key} value={f.key}>{f.label} ({f.key})</option>
-                    ))}
-                  </select>
+                    onChange={(val) => setAiSelectedField(val)}
+                    options={editableTextFields.map((f) => ({ value: f.key, label: f.label }))}
+                    placeholder="Select target field..."
+                  />
                 </div>
 
                 <div className="space-y-1.5">

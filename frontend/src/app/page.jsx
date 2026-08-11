@@ -160,22 +160,6 @@ export default function Home() {
         }
       );
 
-      // Section animations for Pricing Plans
-      gsap.fromTo(
-        ".gsap-pricing-card",
-        { y: 50, opacity: 0 },
-        {
-          y: 0,
-          opacity: 1,
-          duration: 0.8,
-          stagger: 0.15,
-          ease: "power2.out",
-          scrollTrigger: {
-            trigger: ".gsap-pricing-section",
-            start: "top 75%",
-          },
-        }
-      );
     }, heroRef);
 
     return () => ctx.revert();

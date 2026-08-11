@@ -104,7 +104,22 @@ export default function BeginForever({ content = {}, mode = "live", onRsvpSubmit
     ? new Date(rawDate).toLocaleDateString("en-US", { day: "numeric", month: "long", year: "numeric" })
     : "January 24, 2027";
   const displayTime = content.event_time ? `${content.event_time}` : "07:00 PM";
-  const initials = (groomName[0] || "") + (brideName[0] || "");
+  const displayOrder = content.name_display_order || "bride_first";
+  const partner1 = displayOrder === "bride_first" ? brideName : groomName;
+  const partner2 = displayOrder === "bride_first" ? groomName : brideName;
+  const initials = (partner1[0] || "") + (partner2[0] || "");
+
+  const ceremonyType = content.ceremony_type || "Wedding";
+  const brideParents = content.bride_parents || "";
+  const groomParents = content.groom_parents || "";
+  let parentsGreeting = "Together with their families";
+  if (brideParents && groomParents) {
+    parentsGreeting = `Together with their parents\n${brideParents} & ${groomParents}`;
+  } else if (brideParents) {
+    parentsGreeting = `Together with their parents, ${brideParents}`;
+  } else if (groomParents) {
+    parentsGreeting = `Together with their parents, ${groomParents}`;
+  }
 
   // Cover / audio state
   const [isOpen, setIsOpen] = useState(isPreOpen);
@@ -218,12 +233,12 @@ export default function BeginForever({ content = {}, mode = "live", onRsvpSubmit
               <div className="space-y-4">
                 <div className="text-4xl text-amber-500 font-serif font-light mb-2">✦</div>
                 <span className="text-[10px] font-bold uppercase tracking-[0.35em]" style={{ color: accentColor }}>
-                  The Royal Union
+                  The Royal {ceremonyType} Union
                 </span>
                 <h1 className="font-serif text-5xl font-light text-zinc-100 leading-snug tracking-wide">
-                  {groomName} <br />
+                  {partner1} <br />
                   <span className="italic font-normal font-serif" style={{ color: accentColor }}>&amp;</span> <br />
-                  {brideName}
+                  {partner2}
                 </h1>
               </div>
 
@@ -265,12 +280,15 @@ export default function BeginForever({ content = {}, mode = "live", onRsvpSubmit
 
             <div className="space-y-4">
               <h1 className="font-serif text-5xl font-light text-zinc-150 tracking-wide">
-                {groomName} <br />
+                {partner1} <br />
                 <span className="italic font-normal font-serif" style={{ color: accentColor }}>&amp;</span> <br />
-                {brideName}
+                {partner2}
               </h1>
+              <p className="text-[11px] text-amber-500/80 uppercase tracking-widest font-sans max-w-xs mx-auto whitespace-pre-line mb-3">
+                {parentsGreeting}
+              </p>
               <p className="text-xs text-zinc-400 italic max-w-xs mx-auto leading-relaxed">
-                With joyful hearts, we request the honor of your presence to witness the beginning of our forever.
+                request the honor of your presence to witness the beginning of our forever.
               </p>
             </div>
 
@@ -283,6 +301,16 @@ export default function BeginForever({ content = {}, mode = "live", onRsvpSubmit
             Scroll down to view royal ceremonies
           </div>
         </section>
+
+        {/* Welcome Note Section (Optional, not on first page) */}
+        {content.welcome_note && (
+          <section className="w-full max-w-xl bg-zinc-950 border-x border-t border-zinc-900 px-12 py-16 text-center space-y-4">
+            <span className="text-[10px] font-bold uppercase tracking-[0.25em] block" style={{ color: accentColor }}>Welcome Note</span>
+            <p className="font-serif text-2xl font-light italic text-zinc-150 leading-relaxed max-w-sm mx-auto">
+              "{content.welcome_note}"
+            </p>
+          </section>
+        )}
 
         {/* Countdown */}
         <section className="w-full max-w-xl bg-zinc-950 border-x border-t border-zinc-900 px-12 py-16 text-center">
@@ -304,6 +332,19 @@ export default function BeginForever({ content = {}, mode = "live", onRsvpSubmit
           </div>
         </section>
 
+        {/* Our Story (Optional) */}
+        {content.our_story && (
+          <section className="w-full max-w-xl bg-zinc-950 border-x border-t border-zinc-900 px-12 py-16 text-center space-y-6">
+            <span className="text-[10px] font-bold uppercase tracking-[0.25em]" style={{ color: accentColor }}>Our Love Story</span>
+            <h2 className="font-serif text-2xl font-light text-zinc-200 tracking-wide">
+              How We <span className="italic font-normal">Began</span>
+            </h2>
+            <p className="text-xs text-zinc-400 italic max-w-sm mx-auto leading-relaxed whitespace-pre-line">
+              {content.our_story}
+            </p>
+          </section>
+        )}
+
         {/* Event Schedule */}
         <section className="w-full max-w-xl bg-zinc-950 border-x border-t border-zinc-900 px-12 py-16 space-y-12">
           <h2 className="font-serif text-2xl font-light text-zinc-200 text-center tracking-wide">
@@ -311,7 +352,7 @@ export default function BeginForever({ content = {}, mode = "live", onRsvpSubmit
           </h2>
           <div className="space-y-6">
             {[
-              { title: "Nikaah / Wedding Ceremony", time: displayTime, venue: venue, dress: "Royal ethic wear" },
+              { title: `${ceremonyType} Ceremony`, time: `${displayTime}${content.end_date_time ? ` - ${content.end_date_time}` : ""}`, venue: venue, dress: "Royal ethic wear" },
               { title: "Valima / Grand Banquet", time: "08:30 PM onwards", venue: venue, dress: "Black tie formal" },
             ].map((evt) => (
               <div key={evt.title} className="bg-zinc-900/60 border border-amber-500/10 p-6 rounded-2xl">
@@ -334,7 +375,7 @@ export default function BeginForever({ content = {}, mode = "live", onRsvpSubmit
           </h2>
           <div className="h-60 bg-zinc-900 rounded-2xl overflow-hidden border border-amber-500/15 relative">
             <iframe
-              src={`https://maps.google.com/maps?q=${encodeURIComponent(venueAddress)}&t=&z=14&ie=UTF8&iwloc=&output=embed`}
+              src={`https://maps.google.com/maps?q=${encodeURIComponent(`${venue}, ${venueAddress}`)}&t=&z=14&ie=UTF8&iwloc=&output=embed`}
               width="100%" height="100%"
               style={{ border: 0 }}
               allowFullScreen=""
@@ -345,7 +386,7 @@ export default function BeginForever({ content = {}, mode = "live", onRsvpSubmit
           <div className="text-center">
             <p className="text-xs text-zinc-450 max-w-xs mx-auto mb-6">{venueAddress}</p>
             <a
-              href={`https://maps.google.com/?q=${encodeURIComponent(venueAddress)}`}
+              href={content.google_map_link || `https://maps.google.com/?q=${encodeURIComponent(`${venue}, ${venueAddress}`)}`}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 text-zinc-950 font-bold py-3.5 px-8 rounded-xl text-xs uppercase tracking-widest shadow-md transition"
@@ -355,6 +396,22 @@ export default function BeginForever({ content = {}, mode = "live", onRsvpSubmit
             </a>
           </div>
         </section>
+
+        {/* Attributions Section (Optional) */}
+        {(content.attribution_heading || content.attribution_names) && (
+          <section className="w-full max-w-xl bg-zinc-950 border-x border-t border-zinc-900 px-12 py-16 text-center space-y-2">
+            {content.attribution_heading && (
+              <span className="text-[10px] font-bold uppercase tracking-[0.25em] block" style={{ color: accentColor }}>
+                {content.attribution_heading}
+              </span>
+            )}
+            {content.attribution_names && (
+              <p className="font-serif text-2xl font-light italic text-zinc-150">
+                {content.attribution_names}
+              </p>
+            )}
+          </section>
+        )}
 
         {/* RSVP Form */}
         {isLive && (

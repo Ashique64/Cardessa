@@ -263,8 +263,8 @@ export default function EditTemplate() {
                 className="w-full bg-brand-bg border border-brand-border rounded-xl px-4 py-3 text-sm focus:outline-none"
               >
                 <option value="new">New</option>
-                <option value="standard">Standard</option>
-                <option value="premium">Premium</option>
+                <option value="elegant">Elegant</option>
+                <option value="luxe">Luxe</option>
               </select>
             </div>
           </div>

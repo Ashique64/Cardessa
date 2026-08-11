@@ -32,19 +32,34 @@ export default function FloralArch({ content = {}, mode = "live", onRsvpSubmit, 
   const couplePhoto = content.couple_photo || null;
 
   // Custom Palette variables
-  const ivory = "#FBF7EF";       // base background
-  const parchment = "#F3E9D4";   // card/section backgrounds
-  const gold = "#C9A66B";        // accents, dividers, borders
-  const goldDeep = "#9C7A3C";    // emphasis
-  const sage = "#6E7F5C";        // botanical theme color
-  const ink = "#2B2620";         // high contrast near-black text
+  const ivory = content.bg_color || "#FBF7EF";       // base background
+  const parchment = content.bg_color ? `${content.bg_color}ee` : "#F3E9D4";   // card/section backgrounds
+  const gold = content.accent_color || "#C9A66B";        // accents, dividers, borders
+  const goldDeep = content.accent_color || "#9C7A3C";    // emphasis
+  const sage = content.accent_color || "#6E7F5C";        // botanical theme color
+  const ink = content.bg_color === "#121212" ? "#F5F5F5" : "#2B2620";         // high contrast text depending on dark theme
 
   const rawDate = content.event_date || null;
   const displayDate = rawDate
     ? new Date(rawDate).toLocaleDateString("en-US", { day: "numeric", month: "long", year: "numeric" })
     : "December 18, 2026";
   const displayTime = content.event_time ? `${content.event_time}` : "10:30 AM";
-  const initials = (groomName[0] || "") + (brideName[0] || "");
+  const displayOrder = content.name_display_order || "bride_first";
+  const partner1 = displayOrder === "bride_first" ? brideName : groomName;
+  const partner2 = displayOrder === "bride_first" ? groomName : brideName;
+  const initials = (partner1[0] || "") + (partner2[0] || "");
+
+  const ceremonyType = content.ceremony_type || "Wedding";
+  const brideParents = content.bride_parents || "";
+  const groomParents = content.groom_parents || "";
+  let parentsGreeting = "Together with their families";
+  if (brideParents && groomParents) {
+    parentsGreeting = `Together with their parents\n${brideParents} & ${groomParents}`;
+  } else if (brideParents) {
+    parentsGreeting = `Together with their parents, ${brideParents}`;
+  } else if (groomParents) {
+    parentsGreeting = `Together with their parents, ${groomParents}`;
+  }
 
   // Cover / audio state
   const [isOpen, setIsOpen] = useState(isPreOpen);
@@ -163,12 +178,12 @@ export default function FloralArch({ content = {}, mode = "live", onRsvpSubmit, 
               <div className="space-y-6">
                 <div className="text-3xl animate-bounce" style={{ color: sage }}>🌿</div>
                 <span className="text-[10px] font-bold uppercase tracking-[0.3em] font-sans block" style={{ color: goldDeep }}>
-                  The Wedding Celebration
+                  The {ceremonyType} Celebration
                 </span>
                 <h1 className="font-serif text-5xl font-extralight leading-snug tracking-wide" style={{ color: ink }}>
-                  {groomName} <br />
+                  {partner1} <br />
                   <span className="italic font-normal font-serif text-3xl opacity-60" style={{ color: goldDeep }}>&amp;</span> <br />
-                  {brideName}
+                  {partner2}
                 </h1>
               </div>
 
@@ -217,12 +232,12 @@ export default function FloralArch({ content = {}, mode = "live", onRsvpSubmit, 
 
             <div className="space-y-4">
               <h1 className="font-serif text-6xl font-light tracking-wide" style={{ color: ink }}>
-                {groomName} <br />
+                {partner1} <br />
                 <span className="italic font-normal font-serif text-4xl block my-2" style={{ color: sage }}>&amp;</span>
-                {brideName}
+                {partner2}
               </h1>
-              <p className="text-[11px] text-stone-500 uppercase tracking-widest font-medium max-w-xs mx-auto">
-                Together with their families
+              <p className="text-[11px] text-stone-500 uppercase tracking-widest font-medium max-w-xs mx-auto whitespace-pre-line">
+                {parentsGreeting}
               </p>
             </div>
 
@@ -258,6 +273,16 @@ export default function FloralArch({ content = {}, mode = "live", onRsvpSubmit, 
           </div>
         </section>
 
+        {/* Welcome Note Section (Optional, not on first page) */}
+        {content.welcome_note && (
+          <RevealSection className="w-full max-w-xl bg-[#FBF7EF] border-x border-t border-stone-200/30 px-12 py-16 text-center space-y-4">
+            <span className="text-[10px] font-bold uppercase tracking-[0.25em] block" style={{ color: goldDeep }}>Welcome Note</span>
+            <p className="font-serif text-2xl font-light italic leading-relaxed max-w-sm mx-auto" style={{ color: ink }}>
+              "{content.welcome_note}"
+            </p>
+          </RevealSection>
+        )}
+
         {/* Countdown */}
         <RevealSection className="w-full max-w-xl bg-[#FBF7EF] border-x border-t border-stone-200/30 px-12 py-20 text-center">
           <h2 className="font-serif text-3xl font-light mb-8 tracking-wide" style={{ color: ink }}>
@@ -286,6 +311,19 @@ export default function FloralArch({ content = {}, mode = "live", onRsvpSubmit, 
           </div>
         </RevealSection>
 
+        {/* Our Story (Optional) */}
+        {content.our_story && (
+          <RevealSection className="w-full max-w-xl bg-[#FBF7EF] border-x border-t border-stone-200/30 px-12 py-20 text-center space-y-6">
+            <span className="text-[10px] font-bold uppercase tracking-[0.25em]" style={{ color: goldDeep }}>Our Love Story</span>
+            <h2 className="font-serif text-3xl font-light tracking-wide" style={{ color: ink }}>
+              How We <span className="italic font-normal">Began</span>
+            </h2>
+            <p className="text-sm text-stone-500 italic max-w-sm mx-auto leading-relaxed whitespace-pre-line">
+              {content.our_story}
+            </p>
+          </RevealSection>
+        )}
+
         {/* Event Schedule */}
         <RevealSection className="w-full max-w-xl bg-[#FBF7EF] border-x border-t border-stone-200/30 px-8 py-20 space-y-12">
           <h2 className="font-serif text-3xl font-light text-center tracking-wide" style={{ color: ink }}>
@@ -293,7 +331,7 @@ export default function FloralArch({ content = {}, mode = "live", onRsvpSubmit, 
           </h2>
           <div className="space-y-6">
             {[
-              { title: "Main Wedding Ceremony", time: displayTime, dress: "Ethnic traditional attire" },
+              { title: `Main ${ceremonyType} Ceremony`, time: `${displayTime}${content.end_date_time ? ` - ${content.end_date_time}` : ""}`, dress: "Ethnic traditional attire" },
               { title: "Gala Feast", time: "12:30 PM onwards", dress: "Ethnic / Formal" },
             ].map((evt) => (
               <div 
@@ -328,7 +366,7 @@ export default function FloralArch({ content = {}, mode = "live", onRsvpSubmit, 
             style={{ borderColor: gold }}
           >
             <iframe
-              src={`https://maps.google.com/maps?q=${encodeURIComponent(venueAddress)}&t=&z=14&ie=UTF8&iwloc=&output=embed`}
+              src={`https://maps.google.com/maps?q=${encodeURIComponent(`${venue}, ${venueAddress}`)}&t=&z=14&ie=UTF8&iwloc=&output=embed`}
               width="100%" height="100%"
               style={{ border: 0 }}
               allowFullScreen=""
@@ -339,7 +377,7 @@ export default function FloralArch({ content = {}, mode = "live", onRsvpSubmit, 
           <div className="text-center space-y-6">
             <p className="text-xs text-stone-500 max-w-xs mx-auto leading-relaxed">{venueAddress}</p>
             <a
-              href={`https://maps.google.com/?q=${encodeURIComponent(venueAddress)}`}
+              href={content.google_map_link || `https://maps.google.com/?q=${encodeURIComponent(`${venue}, ${venueAddress}`)}`}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 text-white font-bold py-3.5 px-8 rounded-none text-xs uppercase tracking-widest transition-all duration-300 cursor-pointer shadow-md hover:shadow-lg"
@@ -349,6 +387,22 @@ export default function FloralArch({ content = {}, mode = "live", onRsvpSubmit, 
             </a>
           </div>
         </RevealSection>
+
+        {/* Attributions Section (Optional) */}
+        {(content.attribution_heading || content.attribution_names) && (
+          <RevealSection className="w-full max-w-xl bg-[#FBF7EF] border-x border-t border-stone-200/30 px-12 py-16 text-center space-y-2">
+            {content.attribution_heading && (
+              <span className="text-[10px] font-bold uppercase tracking-[0.25em] block" style={{ color: goldDeep }}>
+                {content.attribution_heading}
+              </span>
+            )}
+            {content.attribution_names && (
+              <p className="font-serif text-2xl font-light italic" style={{ color: ink }}>
+                {content.attribution_names}
+              </p>
+            )}
+          </RevealSection>
+        )}
 
         {/* RSVP Form */}
         {isLive && (

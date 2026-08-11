@@ -19,7 +19,7 @@ const tierStyles = {
 
 export default function TemplatesPage() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
 
   // ── Data ───────────────────────────────────────────────────────────────────
   const [categories, setCategories] = useState([]);
@@ -81,8 +81,15 @@ export default function TemplatesPage() {
       });
       router.push(`/editor/${res.data.slug}`);
     } catch (err) {
-      console.error(err);
-      alert("Failed to initialize design editor.");
+      const status = err?.response?.status;
+      if (status === 401 || status === 403) {
+        // Session expired — clear tokens cleanly and redirect to login
+        await logout();
+        router.push("/login");
+      } else {
+        console.error(err);
+        alert("Something went wrong. Please try again.");
+      }
     } finally {
       setLoadingSlug(null);
     }
@@ -163,8 +170,8 @@ export default function TemplatesPage() {
               {[
                 { id: "all",     label: "All" },
                 { id: "new",     label: "New" },
-                { id: "standard", label: "Standard" },
-                { id: "premium",  label: "Premium" },
+                { id: "elegant", label: "Elegant" },
+                { id: "luxe",    label: "Luxe" },
               ].map(({ id, label }) => (
                 <button
                   key={id}
@@ -248,12 +255,12 @@ export default function TemplatesPage() {
                             className={`inline-flex items-center rounded-md px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-widest ${
                               tpl.tier === "new"
                                 ? "bg-blue-50 text-blue-600 border border-blue-200"
-                                : tpl.tier === "standard"
+                                : tpl.tier === "elegant"
                                 ? "bg-emerald-50 text-emerald-600 border border-emerald-200"
                                 : "bg-purple-50 text-purple-600 border border-purple-200"
                             }`}
                           >
-                            {tpl.tier || "Standard"}
+                            {tpl.tier === "elegant" ? "Elegant" : tpl.tier === "luxe" ? "Luxe" : tpl.tier}
                           </span>
                         </div>
 

@@ -309,6 +309,7 @@ export default function DashboardPage() {
   const [newFolderName, setNewFolderName] = useState("");
   const [showFolderModal, setShowFolderModal] = useState(false);
   const [invitationFolderMap, setInvitationFolderMap] = useState({});
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   useEffect(() => {
     const fetchInvitations = async () => {
@@ -371,6 +372,8 @@ export default function DashboardPage() {
     setInvitationFolderMap(updatedMap);
     localStorage.setItem("cardessa_folder_map", JSON.stringify(updatedMap));
   };
+
+
 
   const filteredInvitations = invitations.filter((inv) => {
     if (activeFolder === "All") return true;
@@ -491,10 +494,9 @@ export default function DashboardPage() {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.45, delay: 0.15 }}
-          className="bg-brand-bg border border-brand-border/50 rounded-3xl overflow-hidden shadow-xs"
         >
           {loading ? (
-            <div className="flex items-center justify-center py-28 gap-3">
+            <div className="flex items-center justify-center py-28 gap-3 bg-brand-bg border border-brand-border/50 rounded-3xl">
               <svg className="animate-spin h-5 w-5 text-brand-accent" viewBox="0 0 24 24" fill="none">
                 <circle className="opacity-20" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-70" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
@@ -502,107 +504,124 @@ export default function DashboardPage() {
               <span className="text-xs text-brand-text-muted font-medium tracking-wide">Loading invitations…</span>
             </div>
           ) : invitations.filter((inv) => dashboardTab === "drafts" ? !inv.is_paid : inv.is_paid).length === 0 ? (
-            <EmptyState tab={dashboardTab} />
+            <div className="bg-brand-bg border border-brand-border/50 rounded-3xl overflow-hidden shadow-xs">
+              <EmptyState tab={dashboardTab} />
+            </div>
           ) : (
-            <ul className="divide-y divide-brand-border/40">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {invitations
                 .filter((inv) => dashboardTab === "drafts" ? !inv.is_paid : inv.is_paid)
                 .map((item, idx) => {
                   const currentFolder = invitationFolderMap[item.id] || "Unassigned";
+                  const eventDateFormatted = item.event_date
+                    ? new Date(item.event_date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
+                    : "No Date Set";
+                  
                   return (
-                    <motion.li
+                    <motion.div
                       key={item.id ?? idx}
                       initial={{ opacity: 0, y: 8 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.3, delay: idx * 0.06 }}
-                      className="group p-8 flex flex-col md:flex-row md:items-center justify-between gap-6 hover:bg-brand-bg-soft/30 transition-colors duration-300"
+                      className="bg-white border border-zinc-200/80 rounded-2xl p-6 shadow-2xs hover:shadow-xs transition-all duration-300 relative flex flex-col justify-between min-h-[220px]"
                     >
-                      <div className="flex items-start gap-5">
-                        <div className="hidden sm:flex h-12 w-12 rounded-xl bg-brand-bg-soft border border-brand-border/60 items-center justify-center shrink-0">
-                          <svg className="h-5 w-5 text-brand-accent/50" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
-                          </svg>
+                      <div>
+                        {/* Top Row: Status + Date */}
+                        <div className="flex items-center justify-between mb-3">
+                          <span className={`inline-flex items-center rounded-md px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-wider ${
+                            item.is_paid
+                              ? "bg-emerald-50 text-emerald-600 border border-emerald-100"
+                              : "bg-zinc-100 text-zinc-500 border border-zinc-200/60"
+                          }`}>
+                            {item.is_paid ? "COMPLETED" : "DRAFT"}
+                          </span>
+                          
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] text-zinc-400 font-medium">{eventDateFormatted}</span>
+                            <button
+                              onClick={() => setDeleteTarget({ id: item.id, slug: item.slug, coupleName: item.couple_name })}
+                              title="Delete Invitation"
+                              className="text-zinc-400 hover:text-red-500 transition duration-150 p-1 cursor-pointer"
+                            >
+                              <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                              </svg>
+                            </button>
+                          </div>
                         </div>
 
-                        <div className="space-y-2">
-                          <div className="flex flex-wrap items-center gap-2.5">
-                            <h3 className="font-serif text-xl font-light text-brand-dark leading-tight">
-                              {item.couple_name || "Untitled Invitation"}
-                            </h3>
-                            <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-widest bg-zinc-100 text-zinc-650 border border-zinc-200">
-                              {item.price === 0 ? "Free Template" : `Premium (₹${item.price})`}
+                        {/* Subtitle Row: Ceremony + Template */}
+                        <div className="flex flex-wrap items-center gap-1.5 mb-4">
+                          <span className="inline-flex items-center text-[9px] font-bold uppercase tracking-widest bg-rose-50 text-rose-600 border border-rose-100/60 px-2 py-0.5 rounded">
+                            ❤️ {item.content?.ceremony_type || "WEDDING"}
+                          </span>
+                          {item.template_name && (
+                            <span className="inline-flex items-center text-[9px] font-bold uppercase tracking-widest bg-zinc-50 text-zinc-500 border border-zinc-150 px-2 py-0.5 rounded">
+                              ✨ {item.template_name}
                             </span>
+                          )}
+                        </div>
 
-                            {/* Client folder label indicator */}
-                            {features.multi_client && (
-                              <span className="text-[10px] bg-zinc-100 text-zinc-550 border border-zinc-200 px-2 py-0.5 rounded-md font-semibold">
-                                📁 {currentFolder}
-                              </span>
-                            )}
-                          </div>
-
-                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-brand-text-muted">
-                            {item.template_name && (
-                              <span>Template: <strong className="text-brand-dark font-medium">{item.template_name}</strong></span>
-                            )}
-                            {item.event_date && (
-                              <>
-                                <span className="text-brand-border">·</span>
-                                <span>Date: <strong className="text-brand-dark font-medium">{new Date(item.event_date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</strong></span>
-                              </>
-                            )}
-                          </div>
+                        {/* Couple Name */}
+                        <div className="mb-6">
+                          <h3 className="font-serif text-xl font-light text-zinc-900 leading-tight">
+                            {item.couple_name || "Untitled Invitation"}
+                          </h3>
+                          {item.content?.venue_name && (
+                            <p className="text-[11px] text-zinc-400 truncate mt-1">
+                              {item.content.venue_name}
+                            </p>
+                          )}
                         </div>
                       </div>
 
-                      <div className="flex flex-wrap items-center gap-3 shrink-0">
-                        {/* Move to folder dropdown selector for agency planner users */}
-                        {features.multi_client && (
-                          <select
-                            value={invitationFolderMap[item.id] || "All"}
-                            onChange={(e) => handleMoveToFolder(item.id, e.target.value)}
-                            className="bg-white border border-brand-border/65 text-zinc-650 px-2.5 py-2 rounded-xl text-xs focus:outline-none"
-                          >
-                            <option value="All">Unassigned Client</option>
-                            {folders.filter(f => f !== "All").map(f => (
-                              <option key={f} value={f}>Move to {f}</option>
-                            ))}
-                          </select>
-                        )}
-
-                        <StatusPill isPaid={item.is_paid} />
-
-                        {item.is_paid && (
+                      {/* Actions Footer */}
+                      <div className="flex items-center justify-between gap-2 border-t pt-4">
+                        <Link
+                          href={`/editor/${item.slug || item.id}`}
+                          className="bg-zinc-50 hover:bg-zinc-100 text-zinc-700 border border-zinc-200 font-semibold py-2 px-2.5 rounded-lg text-[10px] uppercase tracking-wider transition-colors duration-200 text-center flex-1"
+                        >
+                          Edit design
+                        </Link>
+                        
+                        {item.is_paid ? (
                           <button
                             onClick={() => setSelectedInviteSlug(item.slug)}
-                            className="bg-brand-bg border border-brand-border/60 hover:bg-brand-accent hover:border-brand-accent hover:text-white text-brand-dark font-bold py-2.5 px-5 rounded-xl text-xs uppercase tracking-wider transition-all duration-300 cursor-pointer"
+                            className="bg-zinc-50 hover:bg-zinc-100 text-zinc-700 border border-zinc-200 font-semibold py-2 px-2.5 rounded-lg text-[10px] uppercase tracking-wider transition-colors duration-200 text-center flex-1 cursor-pointer"
                           >
-                            Guest RSVPs
+                            RSVPs
+                          </button>
+                        ) : (
+                          <button
+                            disabled
+                            className="bg-zinc-50/50 text-zinc-300 border border-zinc-100 font-semibold py-2 px-2.5 rounded-lg text-[10px] uppercase tracking-wider text-center flex-1 cursor-not-allowed"
+                          >
+                            RSVPs
                           </button>
                         )}
 
-                        {item.slug && item.is_paid && (
+                        {item.is_paid ? (
                           <a
                             href={`/i/${item.slug}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="bg-brand-bg border border-brand-border/60 hover:bg-brand-accent hover:border-brand-accent hover:text-white text-brand-dark font-bold py-2.5 px-5 rounded-xl text-xs uppercase tracking-wider transition-all duration-300"
+                            className="bg-[#6B8E70] hover:bg-[#5f7d67] text-white font-semibold py-2 px-2.5 rounded-lg text-[10px] uppercase tracking-wider transition-colors duration-200 text-center flex-1"
                           >
                             View Live
                           </a>
+                        ) : (
+                          <Link
+                            href={`/editor/${item.slug || item.id}`}
+                            className="bg-[#6B8E70] hover:bg-[#5f7d67] text-white font-semibold py-2 px-2.5 rounded-lg text-[10px] uppercase tracking-wider transition-colors duration-200 text-center flex-1"
+                          >
+                            Publish
+                          </Link>
                         )}
-
-                        <Link
-                          href={`/editor/${item.slug || item.id}`}
-                          className="bg-brand-dark hover:bg-brand-accent text-brand-bg font-bold py-2.5 px-5 rounded-xl text-xs uppercase tracking-wider transition-colors duration-300"
-                        >
-                          {item.is_paid ? "Edit" : "Resume Customization"}
-                        </Link>
                       </div>
-                    </motion.li>
+                    </motion.div>
                   );
                 })}
-            </ul>
+            </div>
           )}
         </motion.div>
       </main>
@@ -643,6 +662,72 @@ export default function DashboardPage() {
             slug={selectedInviteSlug}
             onClose={() => setSelectedInviteSlug(null)}
           />
+        )}
+      </AnimatePresence>
+
+      {/* ── Custom Delete Confirmation Dialog Modal ── */}
+      <AnimatePresence>
+        {deleteTarget && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-6">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.96 }}
+              className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl space-y-6 text-center"
+            >
+              <div className="mx-auto h-16 w-16 bg-red-50 border border-red-100 rounded-full flex items-center justify-center text-red-500 text-3xl">
+                ⚠️
+              </div>
+              
+              <div className="space-y-2">
+                <h3 className="font-serif text-xl text-brand-dark">Delete Invitation</h3>
+                <p className="text-xs text-brand-text-muted leading-relaxed px-2">
+                  Are you sure you want to permanently delete the invitation for{" "}
+                  <strong className="text-brand-dark font-semibold">
+                    "{deleteTarget.coupleName || "Untitled Invitation"}"
+                  </strong>
+                  ? This action cannot be undone.
+                </p>
+              </div>
+
+              <div className="flex gap-3 justify-center pt-2">
+                <button
+                  type="button"
+                  onClick={() => setDeleteTarget(null)}
+                  className="flex-1 border border-zinc-200 text-zinc-700 hover:bg-zinc-50 px-5 py-3 rounded-xl text-xs font-bold uppercase tracking-wider cursor-pointer transition duration-150"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const { slug, id } = deleteTarget;
+                    try {
+                      const token = localStorage.getItem("access_token");
+                      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/invitations/${slug}/`, {
+                        method: "DELETE",
+                        headers: { Authorization: `Bearer ${token}` },
+                      });
+                      if (res.ok) {
+                        setInvitations(prev => prev.filter(inv => inv.id !== id));
+                      } else {
+                        const errText = await res.text();
+                        console.error("Delete failed:", errText);
+                        alert("Failed to delete invitation. " + (res.status === 403 ? "Permission denied." : ""));
+                      }
+                    } catch (err) {
+                      console.error(err);
+                    } finally {
+                      setDeleteTarget(null);
+                    }
+                  }}
+                  className="flex-1 bg-red-500 hover:bg-red-650 text-white px-5 py-3 rounded-xl text-xs font-bold uppercase tracking-wider cursor-pointer transition duration-150"
+                >
+                  Delete
+                </button>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
 

@@ -27,14 +27,14 @@ class Category(models.Model):
 class Template(models.Model):
     TIER_CHOICES = [
         ("new", "New"),
-        ("standard", "Standard"),
-        ("premium", "Premium"),
+        ("elegant", "Elegant"),
+        ("luxe", "Luxe"),
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255)
     slug = models.SlugField(unique=True)
-    tier = models.CharField(max_length=20, choices=TIER_CHOICES, default="standard")
+    tier = models.CharField(max_length=20, choices=TIER_CHOICES, default="elegant")
     price_inr = models.PositiveIntegerField(default=999, help_text="Price in INR. 0 means free.")
     is_new = models.BooleanField(default=False, help_text="Mark if this template is newly added.")
     description = models.TextField(blank=True)
