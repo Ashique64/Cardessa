@@ -3,14 +3,15 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/context/AuthContext";
+import { useAuthStore } from "@/store/authStore";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import apiClient from "@/lib/api";
 
 export default function AdminDashboard() {
   const router = useRouter();
-  const { user, isLoading: authLoading } = useAuth();
+  const user = useAuthStore((state) => state.user);
+  const authLoading = useAuthStore((state) => state.isLoading);
   
   // Navigation tabs: 'stats' | 'templates' | 'categories' | 'users' | 'orders'
   const [activeTab, setActiveTab] = useState("stats");
@@ -443,7 +444,7 @@ export default function AdminDashboard() {
                           {ord.status === "paid" ? (
                             <span className="text-[9px] font-bold uppercase text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">Paid</span>
                           ) : (
-                            <span className="text-[9px] font-bold uppercase text-zinc-500 bg-zinc-55 px-2 py-0.5 rounded border border-zinc-200">Pending</span>
+                            <span className="text-[9px] font-bold uppercase text-zinc-500 bg-zinc-100 px-2 py-0.5 rounded border border-zinc-200">Pending</span>
                           )}
                         </td>
                         <td className="p-5 text-brand-text-muted">

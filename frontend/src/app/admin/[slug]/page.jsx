@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useParams } from "next/navigation";
-import { useAuth } from "@/context/AuthContext";
+import { useAuthStore } from "@/store/authStore";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import apiClient from "@/lib/api";
@@ -11,7 +11,8 @@ import apiClient from "@/lib/api";
 export default function EditTemplate() {
   const router = useRouter();
   const { slug } = useParams();
-  const { user, isLoading: authLoading } = useAuth();
+  const user = useAuthStore((state) => state.user);
+  const authLoading = useAuthStore((state) => state.isLoading);
   
   const [categoriesList, setCategoriesList] = useState([]);
   const [formData, setFormData] = useState({

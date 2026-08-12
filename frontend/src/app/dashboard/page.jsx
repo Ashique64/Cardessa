@@ -5,7 +5,7 @@ import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { useAuth } from "@/context/AuthContext";
+import { useAuthStore } from "@/store/authStore";
 
 const fadeUp = {
   initial: { opacity: 0, y: 16 },
@@ -294,7 +294,7 @@ function RsvpManagerModal({ slug, onClose }) {
 
 // ─── Main Dashboard Page ─────────────────────────────────────────────────────
 export default function DashboardPage() {
-  const { user } = useAuth();
+  const user = useAuthStore((state) => state.user);
   const [invitations, setInvitations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedInviteSlug, setSelectedInviteSlug] = useState(null);
@@ -538,15 +538,17 @@ export default function DashboardPage() {
                           
                           <div className="flex items-center gap-2">
                             <span className="text-[10px] text-zinc-400 font-medium">{eventDateFormatted}</span>
-                            <button
-                              onClick={() => setDeleteTarget({ id: item.id, slug: item.slug, coupleName: item.couple_name })}
-                              title="Delete Invitation"
-                              className="text-zinc-400 hover:text-red-500 transition duration-150 p-1 cursor-pointer"
-                            >
-                              <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-                              </svg>
-                            </button>
+                            {!item.is_paid && (
+                              <button
+                                onClick={() => setDeleteTarget({ id: item.id, slug: item.slug, coupleName: item.couple_name })}
+                                title="Delete Invitation"
+                                className="text-zinc-400 hover:text-red-500 transition duration-150 p-1 cursor-pointer"
+                              >
+                                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                                </svg>
+                              </button>
+                            )}
                           </div>
                         </div>
 
@@ -577,45 +579,50 @@ export default function DashboardPage() {
 
                       {/* Actions Footer */}
                       <div className="flex items-center justify-between gap-2 border-t pt-4">
-                        <Link
-                          href={`/editor/${item.slug || item.id}`}
-                          className="bg-zinc-50 hover:bg-zinc-100 text-zinc-700 border border-zinc-200 font-semibold py-2 px-2.5 rounded-lg text-[10px] uppercase tracking-wider transition-colors duration-200 text-center flex-1"
-                        >
-                          Edit design
-                        </Link>
-                        
                         {item.is_paid ? (
-                          <button
-                            onClick={() => setSelectedInviteSlug(item.slug)}
-                            className="bg-zinc-50 hover:bg-zinc-100 text-zinc-700 border border-zinc-200 font-semibold py-2 px-2.5 rounded-lg text-[10px] uppercase tracking-wider transition-colors duration-200 text-center flex-1 cursor-pointer"
-                          >
-                            RSVPs
-                          </button>
+                          <>
+                            <button
+                              onClick={() => {
+                                const link = `${window.location.origin}/i/${item.slug}`;
+                                navigator.clipboard.writeText(link);
+                                alert("✓ Copied to clipboard!");
+                              }}
+                              className="bg-zinc-50 hover:bg-zinc-100 text-zinc-700 border border-zinc-200 font-semibold py-2 px-2.5 rounded-lg text-[10px] uppercase tracking-wider transition-colors duration-200 text-center flex-1 cursor-pointer"
+                            >
+                              Copy Link
+                            </button>
+                            {item.content?.rsvp_enabled && (
+                              <button
+                                onClick={() => setSelectedInviteSlug(item.slug)}
+                                className="bg-zinc-50 hover:bg-zinc-100 text-zinc-700 border border-zinc-200 font-semibold py-2 px-2.5 rounded-lg text-[10px] uppercase tracking-wider transition-colors duration-200 text-center flex-1 cursor-pointer"
+                              >
+                                RSVPs
+                              </button>
+                            )}
+                            <a
+                              href={`/i/${item.slug}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="bg-[#6B8E70] hover:bg-[#5f7d67] text-white font-semibold py-2 px-2.5 rounded-lg text-[10px] uppercase tracking-wider transition-colors duration-200 text-center flex-1"
+                            >
+                              View Live
+                            </a>
+                          </>
                         ) : (
-                          <button
-                            disabled
-                            className="bg-zinc-50/50 text-zinc-300 border border-zinc-100 font-semibold py-2 px-2.5 rounded-lg text-[10px] uppercase tracking-wider text-center flex-1 cursor-not-allowed"
-                          >
-                            RSVPs
-                          </button>
-                        )}
-
-                        {item.is_paid ? (
-                          <a
-                            href={`/i/${item.slug}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="bg-[#6B8E70] hover:bg-[#5f7d67] text-white font-semibold py-2 px-2.5 rounded-lg text-[10px] uppercase tracking-wider transition-colors duration-200 text-center flex-1"
-                          >
-                            View Live
-                          </a>
-                        ) : (
-                          <Link
-                            href={`/editor/${item.slug || item.id}`}
-                            className="bg-[#6B8E70] hover:bg-[#5f7d67] text-white font-semibold py-2 px-2.5 rounded-lg text-[10px] uppercase tracking-wider transition-colors duration-200 text-center flex-1"
-                          >
-                            Publish
-                          </Link>
+                          <>
+                            <Link
+                              href={`/editor/${item.slug || item.id}`}
+                              className="bg-zinc-50 hover:bg-zinc-100 text-zinc-700 border border-zinc-200 font-semibold py-2 px-2.5 rounded-lg text-[10px] uppercase tracking-wider transition-colors duration-200 text-center flex-1"
+                            >
+                              Edit design
+                            </Link>
+                            <Link
+                              href={`/editor/${item.slug || item.id}`}
+                              className="bg-[#6B8E70] hover:bg-[#5f7d67] text-white font-semibold py-2 px-2.5 rounded-lg text-[10px] uppercase tracking-wider transition-colors duration-200 text-center flex-1"
+                            >
+                              Publish
+                            </Link>
+                          </>
                         )}
                       </div>
                     </motion.div>

@@ -146,7 +146,7 @@ REST_FRAMEWORK = {
 
 # ─── SimpleJWT configuration ──────────────────────────────────────────────────
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),
+    "ACCESS_TOKEN_LIFETIME": timedelta(days=1),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
     "ROTATE_REFRESH_TOKENS": True,       # issue new refresh token on each refresh
     "BLACKLIST_AFTER_ROTATION": False,   # set True if you add token blacklist app

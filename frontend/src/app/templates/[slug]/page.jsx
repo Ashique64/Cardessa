@@ -3,14 +3,14 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useAuth } from "@/context/AuthContext";
+import { useAuthStore } from "@/store/authStore";
 import { ordersApi } from "@/lib/api";
 import TemplateRenderer from "@/components/TemplateRenderer";
 
 export default function TemplateDemoPage() {
   const { slug } = useParams();
   const router = useRouter();
-  const { user } = useAuth();
+  const user = useAuthStore((state) => state.user);
 
   const [template, setTemplate] = useState(null);
   const [loading, setLoading] = useState(true);

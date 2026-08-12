@@ -111,7 +111,10 @@ export default function FloralArch({ content = {}, mode = "live", onRsvpSubmit, 
 
   const handleRsvpSubmit = async (e) => {
     e.preventDefault();
-    if (!onRsvpSubmit) return;
+    if (!onRsvpSubmit) {
+      setRsvpSubmitted(true);
+      return;
+    }
     setRsvpLoading(true);
     setRsvpError("");
     try {
@@ -324,6 +327,28 @@ export default function FloralArch({ content = {}, mode = "live", onRsvpSubmit, 
           </RevealSection>
         )}
 
+        {/* Photo Album / Gallery */}
+        {content.photo_album_enabled && content.photo_album && content.photo_album.filter(Boolean).length > 0 && (
+          <RevealSection className="w-full max-w-xl bg-[#FBF7EF] border-x border-t border-stone-200/30 px-6 py-20 text-center space-y-8">
+            <span className="text-[10px] font-bold uppercase tracking-[0.25em]" style={{ color: goldDeep }}>Memories</span>
+            <h2 className="font-serif text-3xl font-light tracking-wide" style={{ color: ink }}>
+              Our <span className="italic font-normal">Photo Album</span>
+            </h2>
+            <div className="grid grid-cols-2 gap-3.5 max-w-md mx-auto">
+              {content.photo_album.filter(Boolean).map((imgUrl, idx) => (
+                <div 
+                  key={idx} 
+                  className="aspect-square rounded-xl overflow-hidden border-2 border-white shadow-md hover:scale-[1.02] transition duration-300 relative group cursor-pointer"
+                  style={{ borderColor: gold }}
+                >
+                  <img src={imgUrl} alt={`Album Memory ${idx + 1}`} className="w-full h-full object-cover" />
+                  <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition duration-350" />
+                </div>
+              ))}
+            </div>
+          </RevealSection>
+        )}
+
         {/* Event Schedule */}
         <RevealSection className="w-full max-w-xl bg-[#FBF7EF] border-x border-t border-stone-200/30 px-8 py-20 space-y-12">
           <h2 className="font-serif text-3xl font-light text-center tracking-wide" style={{ color: ink }}>
@@ -388,25 +413,9 @@ export default function FloralArch({ content = {}, mode = "live", onRsvpSubmit, 
           </div>
         </RevealSection>
 
-        {/* Attributions Section (Optional) */}
-        {(content.attribution_heading || content.attribution_names) && (
-          <RevealSection className="w-full max-w-xl bg-[#FBF7EF] border-x border-t border-stone-200/30 px-12 py-16 text-center space-y-2">
-            {content.attribution_heading && (
-              <span className="text-[10px] font-bold uppercase tracking-[0.25em] block" style={{ color: goldDeep }}>
-                {content.attribution_heading}
-              </span>
-            )}
-            {content.attribution_names && (
-              <p className="font-serif text-2xl font-light italic" style={{ color: ink }}>
-                {content.attribution_names}
-              </p>
-            )}
-          </RevealSection>
-        )}
-
         {/* RSVP Form */}
-        {isLive && (
-          <RevealSection className="w-full max-w-xl bg-[#FBF7EF] border-x border-t border-stone-200/30 px-12 py-20 space-y-8 pb-28">
+        {content.rsvp_enabled && (
+          <RevealSection className="w-full max-w-xl bg-[#FBF7EF] border-x border-t border-stone-200/30 px-12 py-20 space-y-8 pb-20">
             <h2 className="font-serif text-3xl font-light text-center tracking-wide" style={{ color: ink }}>
               Confirm <span className="italic font-normal">Attendance</span>
             </h2>
@@ -418,7 +427,7 @@ export default function FloralArch({ content = {}, mode = "live", onRsvpSubmit, 
                 className="text-center p-8 border max-w-sm mx-auto space-y-4"
                 style={{ backgroundColor: parchment, borderColor: gold }}
               >
-                <div className="h-10 w-10 bg-emerald-55/15 border border-emerald-250 text-emerald-700 rounded-full flex items-center justify-center mx-auto text-lg">✓</div>
+                <div className="h-10 w-10 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-full flex items-center justify-center mx-auto text-lg">✓</div>
                 <h3 className="font-serif text-xl font-medium" style={{ color: ink }}>You are Registered</h3>
                 <p className="text-xs text-stone-500 leading-relaxed">Your response has been sent to the wedding organizer.</p>
               </motion.div>
@@ -434,29 +443,15 @@ export default function FloralArch({ content = {}, mode = "live", onRsvpSubmit, 
                   className="w-full bg-white border rounded-none px-4 py-3.5 text-sm placeholder-stone-400 focus:outline-none focus:border-stone-500 focus:ring-1 focus:ring-stone-500 transition"
                   style={{ borderColor: `${gold}60` }}
                 />
-                <div className="grid grid-cols-2 gap-3">
-                  <input type="email" placeholder="Email" value={rsvpData.email} onChange={(e) => setRsvpData({ ...rsvpData, email: e.target.value })} className="w-full bg-white border rounded-none px-4 py-3.5 text-sm placeholder-stone-400 focus:outline-none transition" style={{ borderColor: `${gold}60` }} />
-                  <input type="tel" placeholder="Phone" value={rsvpData.phone} onChange={(e) => setRsvpData({ ...rsvpData, phone: e.target.value })} className="w-full bg-white border rounded-none px-4 py-3.5 text-sm placeholder-stone-400 focus:outline-none transition" style={{ borderColor: `${gold}60` }} />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <select value={rsvpData.status} onChange={(e) => setRsvpData({ ...rsvpData, status: e.target.value })} className="w-full bg-white border rounded-none px-4 py-3.5 text-sm focus:outline-none transition" style={{ borderColor: `${gold}60` }}>
-                    <option value="attending">Will Attend</option>
-                    <option value="declined">Will Decline</option>
-                  </select>
-                  <select value={rsvpData.guest_count} onChange={(e) => setRsvpData({ ...rsvpData, guest_count: parseInt(e.target.value) || 1 })} className="w-full bg-white border rounded-none px-4 py-3.5 text-sm focus:outline-none transition" style={{ borderColor: `${gold}60` }}>
-                    {[1, 2, 3, 4, 5, 6].map((n) => (
-                      <option key={n} value={n}>{n} {n === 1 ? "Person" : "People"}</option>
-                    ))}
-                  </select>
-                </div>
-                <textarea
-                  placeholder="Blessings or comments…"
-                  value={rsvpData.message}
-                  onChange={(e) => setRsvpData({ ...rsvpData, message: e.target.value })}
-                  rows="3"
-                  className="w-full bg-white border rounded-none px-4 py-3.5 text-sm placeholder-stone-400 focus:outline-none transition"
+                <select 
+                  value={rsvpData.status} 
+                  onChange={(e) => setRsvpData({ ...rsvpData, status: e.target.value })} 
+                  className="w-full bg-white border rounded-none px-4 py-3.5 text-sm focus:outline-none transition" 
                   style={{ borderColor: `${gold}60` }}
-                />
+                >
+                  <option value="attending">Will Attend</option>
+                  <option value="declined">Will Decline</option>
+                </select>
                 <button
                   type="submit" disabled={rsvpLoading}
                   className="w-full text-white font-bold py-4 rounded-none text-xs uppercase tracking-widest transition-all cursor-pointer disabled:opacity-50 shadow-md hover:shadow-lg"
@@ -465,6 +460,22 @@ export default function FloralArch({ content = {}, mode = "live", onRsvpSubmit, 
                   {rsvpLoading ? "Confirming…" : "Send Attendance"}
                 </button>
               </form>
+            )}
+          </RevealSection>
+        )}
+
+        {/* Attributions Section (Optional) */}
+        {(content.attribution_heading || content.attribution_names) && (
+          <RevealSection className="w-full max-w-xl bg-[#FBF7EF] border-x border-t border-stone-200/30 px-12 py-16 text-center space-y-2 pb-28">
+            {content.attribution_heading && (
+              <span className="text-[10px] font-bold uppercase tracking-[0.25em] block" style={{ color: goldDeep }}>
+                {content.attribution_heading}
+              </span>
+            )}
+            {content.attribution_names && (
+              <p className="font-serif text-2xl font-light italic" style={{ color: ink }}>
+                {content.attribution_names}
+              </p>
             )}
           </RevealSection>
         )}

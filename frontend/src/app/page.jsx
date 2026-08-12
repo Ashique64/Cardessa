@@ -4,7 +4,7 @@ import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/context/AuthContext";
+import { useAuthStore } from "@/store/authStore";
 import { motion, AnimatePresence } from "framer-motion";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
@@ -13,7 +13,7 @@ import Footer from "@/components/Footer";
 
 export default function Home() {
   const router = useRouter();
-  const { user } = useAuth();
+  const user = useAuthStore((state) => state.user);
   const [isPlaying, setIsPlaying] = useState(false);
   const [rsvpStatus, setRsvpStatus] = useState(null); // 'yes' | 'no' | null
   const [showRsvpDialog, setShowRsvpDialog] = useState(false);

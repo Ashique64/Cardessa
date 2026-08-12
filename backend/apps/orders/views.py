@@ -30,30 +30,37 @@ class OrderCreateView(APIView):
         plan_id = request.data.get("plan_id")
 
         if invitation_id:
+            from django.core.exceptions import ValidationError
             try:
-                invitation = Invitation.objects.get(id=invitation_id, user=request.user)
+                try:
+                    invitation = Invitation.objects.get(id=invitation_id, user=request.user)
+                except (Invitation.DoesNotExist, ValidationError):
+                    invitation = Invitation.objects.get(slug=invitation_id, user=request.user)
             except Invitation.DoesNotExist:
                 return Response({"error": "Invitation not found."}, status=status.HTTP_404_NOT_FOUND)
 
             template = invitation.template
             amount_paise = template.price_inr * 100
 
-            # If it's a free template, approve payment immediately and publish
-            if amount_paise == 0:
+            # If it's a free template or the user is admin/staff, approve payment immediately and publish
+            if amount_paise == 0 or request.user.is_superuser or request.user.is_staff:
                 invitation.is_paid = True
                 invitation.is_published = True
                 invitation.save()
 
-                Order.objects.create(
-                    user=request.user,
-                    invitation=invitation,
+                Order.objects.get_or_create(
                     razorpay_order_id=f"free_{invitation.id}",
-                    amount_inr=0,
-                    status="paid",
+                    defaults={
+                        "user": request.user,
+                        "invitation": invitation,
+                        "amount_inr": 0,
+                        "status": "paid",
+                        "features_snapshot": {}
+                    }
                 )
                 return Response({
                     "free": True,
-                    "message": "Template is free. Invitation activated."
+                    "message": "Invitation activated."
                 }, status=status.HTTP_201_CREATED)
 
             client = razorpay.Client(

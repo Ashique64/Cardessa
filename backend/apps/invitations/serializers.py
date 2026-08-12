@@ -24,8 +24,23 @@ def validate_content_against_schema(content: dict, field_schema: dict) -> None:
         # Template has no schema yet — skip validation (legacy / unconfigured template)
         return
 
-    schema_fields = field_schema["fields"]
-    schema_keys = {f["key"] for f in schema_fields} | {"hide_branding"}
+    schema_fields = field_schema.get("fields", [])
+    
+    STANDARD_KEYS = {
+        "bride_name", "groom_name", "name_display_order", "ceremony_type", "bride_parents", "groom_parents",
+        "event_date", "event_time", "end_date_time", "venue_name", "venue_address", "google_map_link",
+        "accent_color", "bg_color",
+        "welcome_note", "attribution_heading", "attribution_names",
+        "our_story",
+        "couple_photo",
+        "photo_album_enabled", "photo_album",
+        "rsvp_enabled",
+        "music_url", "music_enabled",
+        "hide_branding",
+        # Custom UI flags
+        "parents_enabled", "end_time_enabled", "google_map_enabled", "attributions_enabled", "our_story_enabled",
+    }
+    schema_keys = {f["key"] for f in schema_fields} | STANDARD_KEYS
 
     # 1. Reject completely unknown keys (prevents content pollution)
     unknown = set(content.keys()) - schema_keys

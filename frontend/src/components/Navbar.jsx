@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { useAuth } from "@/context/AuthContext";
+import { useAuthStore } from "@/store/authStore";
 import { motion, AnimatePresence } from "framer-motion";
 
 
@@ -100,7 +100,8 @@ function UserDropdown({ user, logout }) {
 
 export default function Navbar() {
 
-  const { user, logout } = useAuth();
+  const user = useAuthStore((state) => state.user);
+  const logout = useAuthStore((state) => state.logout);
   const [isOpen, setIsOpen] = useState(false); // Mobile menu toggle
   const [visible, setVisible] = useState(true);
   const [isHeroPassed, setIsHeroPassed] = useState(false);

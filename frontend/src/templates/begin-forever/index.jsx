@@ -171,7 +171,10 @@ export default function BeginForever({ content = {}, mode = "live", onRsvpSubmit
 
   const handleRsvpSubmit = async (e) => {
     e.preventDefault();
-    if (!onRsvpSubmit) return;
+    if (!onRsvpSubmit) {
+      setRsvpSubmitted(true);
+      return;
+    }
     setRsvpLoading(true);
     setRsvpError("");
     try {
@@ -326,7 +329,7 @@ export default function BeginForever({ content = {}, mode = "live", onRsvpSubmit
             ].map(({ val, lbl }) => (
               <div key={lbl} className="bg-zinc-900 border border-amber-500/20 rounded-xl p-3 flex flex-col items-center shadow-xs">
                 <span className="font-serif text-2xl font-semibold" style={{ color: accentColor }}>{val}</span>
-                <span className="text-[9px] uppercase tracking-wider text-zinc-550 mt-1">{lbl}</span>
+                <span className="text-[9px] uppercase tracking-wider text-zinc-400 mt-1">{lbl}</span>
               </div>
             ))}
           </div>
@@ -342,6 +345,27 @@ export default function BeginForever({ content = {}, mode = "live", onRsvpSubmit
             <p className="text-xs text-zinc-400 italic max-w-sm mx-auto leading-relaxed whitespace-pre-line">
               {content.our_story}
             </p>
+          </section>
+        )}
+
+        {/* Photo Album / Gallery */}
+        {content.photo_album_enabled && content.photo_album && content.photo_album.filter(Boolean).length > 0 && (
+          <section className="w-full max-w-xl bg-zinc-950 border-x border-t border-zinc-900 px-6 py-16 text-center space-y-8">
+            <span className="text-[10px] font-bold uppercase tracking-[0.25em]" style={{ color: accentColor }}>Memories</span>
+            <h2 className="font-serif text-2xl font-light text-zinc-200 tracking-wide">
+              Our <span className="italic font-normal">Photo Album</span>
+            </h2>
+            <div className="grid grid-cols-2 gap-3.5 max-w-md mx-auto">
+              {content.photo_album.filter(Boolean).map((imgUrl, idx) => (
+                <div 
+                  key={idx} 
+                  className="aspect-square rounded-xl overflow-hidden border border-amber-500/20 shadow-md hover:scale-[1.02] transition duration-300 relative group cursor-pointer"
+                >
+                  <img src={imgUrl} alt={`Album Memory ${idx + 1}`} className="w-full h-full object-cover" />
+                  <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition duration-350" />
+                </div>
+              ))}
+            </div>
           </section>
         )}
 
@@ -397,25 +421,9 @@ export default function BeginForever({ content = {}, mode = "live", onRsvpSubmit
           </div>
         </section>
 
-        {/* Attributions Section (Optional) */}
-        {(content.attribution_heading || content.attribution_names) && (
-          <section className="w-full max-w-xl bg-zinc-950 border-x border-t border-zinc-900 px-12 py-16 text-center space-y-2">
-            {content.attribution_heading && (
-              <span className="text-[10px] font-bold uppercase tracking-[0.25em] block" style={{ color: accentColor }}>
-                {content.attribution_heading}
-              </span>
-            )}
-            {content.attribution_names && (
-              <p className="font-serif text-2xl font-light italic text-zinc-150">
-                {content.attribution_names}
-              </p>
-            )}
-          </section>
-        )}
-
         {/* RSVP Form */}
-        {isLive && (
-          <section className="w-full max-w-xl bg-zinc-950 border-x border-t border-zinc-900 px-12 py-16 space-y-8 pb-24">
+        {content.rsvp_enabled && (
+          <section className="w-full max-w-xl bg-zinc-950 border-x border-t border-zinc-900 px-12 py-16 space-y-8 pb-16">
             <h2 className="font-serif text-2xl font-light text-zinc-150 text-center tracking-wide">
               Confirm <span className="italic font-normal">Attendance</span>
             </h2>
@@ -439,30 +447,16 @@ export default function BeginForever({ content = {}, mode = "live", onRsvpSubmit
                   type="text" required placeholder="Guest Name"
                   value={rsvpData.guest_name}
                   onChange={(e) => setRsvpData({ ...rsvpData, guest_name: e.target.value })}
-                  className="w-full bg-zinc-900 border border-amber-500/20 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-amber-500/50 text-zinc-100 placeholder:text-zinc-550"
+                  className="w-full bg-zinc-900 border border-amber-500/20 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-amber-500/50 text-zinc-100 placeholder:text-zinc-500"
                 />
-                <div className="grid grid-cols-2 gap-3">
-                  <input type="email" placeholder="Email" value={rsvpData.email} onChange={(e) => setRsvpData({ ...rsvpData, email: e.target.value })} className="w-full bg-zinc-900 border border-amber-500/20 rounded-xl px-4 py-3 text-sm focus:outline-none text-zinc-100" />
-                  <input type="tel" placeholder="Phone" value={rsvpData.phone} onChange={(e) => setRsvpData({ ...rsvpData, phone: e.target.value })} className="w-full bg-zinc-900 border border-amber-500/20 rounded-xl px-4 py-3 text-sm focus:outline-none text-zinc-100" />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <select value={rsvpData.status} onChange={(e) => setRsvpData({ ...rsvpData, status: e.target.value })} className="w-full bg-zinc-900 border border-amber-500/20 rounded-xl px-4 py-3 text-sm focus:outline-none text-zinc-400">
-                    <option value="attending">Will Attend</option>
-                    <option value="declined">Will Decline</option>
-                  </select>
-                  <select value={rsvpData.guest_count} onChange={(e) => setRsvpData({ ...rsvpData, guest_count: parseInt(e.target.value) || 1 })} className="w-full bg-zinc-900 border border-amber-500/20 rounded-xl px-4 py-3 text-sm focus:outline-none text-zinc-400">
-                    {[1, 2, 3, 4, 5, 6].map((n) => (
-                      <option key={n} value={n}>{n} {n === 1 ? "Person" : "People"}</option>
-                    ))}
-                  </select>
-                </div>
-                <textarea
-                  placeholder="Blessings or message for the couple…"
-                  value={rsvpData.message}
-                  onChange={(e) => setRsvpData({ ...rsvpData, message: e.target.value })}
-                  rows="3"
-                  className="w-full bg-zinc-900 border border-amber-500/20 rounded-xl px-4 py-3 text-sm focus:outline-none text-zinc-100"
-                />
+                <select 
+                  value={rsvpData.status} 
+                  onChange={(e) => setRsvpData({ ...rsvpData, status: e.target.value })} 
+                  className="w-full bg-zinc-900 border border-amber-500/20 rounded-xl px-4 py-3 text-sm focus:outline-none text-zinc-450"
+                >
+                  <option value="attending">Will Attend</option>
+                  <option value="declined">Will Decline</option>
+                </select>
                 <button
                   type="submit" disabled={rsvpLoading}
                   className="w-full text-zinc-950 font-bold py-4 rounded-xl text-xs uppercase tracking-widest transition-colors cursor-pointer disabled:opacity-50"
@@ -471,6 +465,22 @@ export default function BeginForever({ content = {}, mode = "live", onRsvpSubmit
                   {rsvpLoading ? "Confirming…" : "Send RSVP"}
                 </button>
               </form>
+            )}
+          </section>
+        )}
+
+        {/* Attributions Section (Optional) */}
+        {(content.attribution_heading || content.attribution_names) && (
+          <section className="w-full max-w-xl bg-zinc-950 border-x border-t border-zinc-900 px-12 py-16 text-center space-y-2 pb-24">
+            {content.attribution_heading && (
+              <span className="text-[10px] font-bold uppercase tracking-[0.25em] block" style={{ color: accentColor }}>
+                {content.attribution_heading}
+              </span>
+            )}
+            {content.attribution_names && (
+              <p className="font-serif text-2xl font-light italic text-zinc-150">
+                {content.attribution_names}
+              </p>
             )}
           </section>
         )}

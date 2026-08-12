@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { useAuth } from "@/context/AuthContext";
+import { useAuthStore } from "@/store/authStore";
 import apiClient, { ordersApi } from "@/lib/api";
 
 const API = process.env.NEXT_PUBLIC_API_URL;
@@ -19,7 +19,8 @@ const tierStyles = {
 
 export default function TemplatesPage() {
   const router = useRouter();
-  const { user, logout } = useAuth();
+  const user = useAuthStore((state) => state.user);
+  const logout = useAuthStore((state) => state.logout);
 
   // ── Data ───────────────────────────────────────────────────────────────────
   const [categories, setCategories] = useState([]);

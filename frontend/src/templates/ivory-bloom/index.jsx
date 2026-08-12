@@ -181,7 +181,10 @@ export default function IvoryBloom({ content = {}, mode = "live", onRsvpSubmit, 
 
   const handleRsvpSubmit = async (e) => {
     e.preventDefault();
-    if (!onRsvpSubmit) return;
+    if (!onRsvpSubmit) {
+      setRsvpSubmitted(true);
+      return;
+    }
     setRsvpLoading(true);
     setRsvpError("");
     try {
@@ -353,6 +356,28 @@ export default function IvoryBloom({ content = {}, mode = "live", onRsvpSubmit, 
           </section>
         )}
 
+        {/* Photo Album / Gallery */}
+        {content.photo_album_enabled && content.photo_album && content.photo_album.filter(Boolean).length > 0 && (
+          <section className="w-full max-w-xl bg-white border-x border-t border-zinc-200/40 px-6 py-20 text-center space-y-8">
+            <span className="text-[10px] font-bold uppercase tracking-[0.25em] block" style={{ color: accentColor }}>Memories</span>
+            <h2 className="font-serif text-3xl font-light text-zinc-900 tracking-wide">
+              Our <span className="italic font-normal">Photo Album</span>
+            </h2>
+            <div className="grid grid-cols-2 gap-3.5 max-w-md mx-auto">
+              {content.photo_album.filter(Boolean).map((imgUrl, idx) => (
+                <div 
+                  key={idx} 
+                  className="aspect-square rounded-xl overflow-hidden border border-zinc-200 shadow-md hover:scale-[1.02] transition duration-300 relative group cursor-pointer"
+                  style={{ borderColor: `${accentColor}33` }}
+                >
+                  <img src={imgUrl} alt={`Album Memory ${idx + 1}`} className="w-full h-full object-cover" />
+                  <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition duration-350" />
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
         {/* Event Schedule */}
         <section className="w-full max-w-xl bg-white border-x border-t border-zinc-200/40 px-12 py-20 space-y-12">
           <h2 className="font-serif text-3xl font-light text-zinc-900 text-center tracking-wide">
@@ -405,25 +430,9 @@ export default function IvoryBloom({ content = {}, mode = "live", onRsvpSubmit, 
           </div>
         </section>
 
-        {/* Attributions Section (Optional) */}
-        {(content.attribution_heading || content.attribution_names) && (
-          <section className="w-full max-w-xl bg-white border-x border-t border-zinc-200/40 px-12 py-16 text-center space-y-2">
-            {content.attribution_heading && (
-              <span className="text-[10px] font-bold uppercase tracking-[0.25em] block" style={{ color: accentColor }}>
-                {content.attribution_heading}
-              </span>
-            )}
-            {content.attribution_names && (
-              <p className="font-serif text-2xl font-light italic text-zinc-900">
-                {content.attribution_names}
-              </p>
-            )}
-          </section>
-        )}
-
         {/* RSVP Form — hidden in editor/preview mode */}
-        {isLive && (
-          <section className="w-full max-w-xl bg-white border-x border-t border-zinc-200/40 px-12 py-20 space-y-8 pb-28">
+        {content.rsvp_enabled && (
+          <section className="w-full max-w-xl bg-white border-x border-t border-zinc-200/40 px-12 py-20 space-y-8 pb-16">
             <h2 className="font-serif text-3xl font-light text-zinc-900 text-center tracking-wide">
               Confirm <span className="italic font-normal">Attendance</span>
             </h2>
@@ -444,34 +453,20 @@ export default function IvoryBloom({ content = {}, mode = "live", onRsvpSubmit, 
                   <div className="bg-red-50 border border-red-200 text-red-600 text-xs font-medium px-4 py-3 rounded-xl">{rsvpError}</div>
                 )}
                 <input
-                  type="text" required placeholder="Your Full Name"
+                  type="text" required placeholder="Guest Name"
                   value={rsvpData.guest_name}
                   onChange={(e) => setRsvpData({ ...rsvpData, guest_name: e.target.value })}
                   className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-1"
                   style={{ ["--tw-ring-color"]: accentColor }}
                 />
-                <div className="grid grid-cols-2 gap-3">
-                  <input type="email" placeholder="Email (Optional)" value={rsvpData.email} onChange={(e) => setRsvpData({ ...rsvpData, email: e.target.value })} className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-3 text-sm focus:outline-none" />
-                  <input type="tel" placeholder="Phone (Optional)" value={rsvpData.phone} onChange={(e) => setRsvpData({ ...rsvpData, phone: e.target.value })} className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-3 text-sm focus:outline-none" />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <select value={rsvpData.status} onChange={(e) => setRsvpData({ ...rsvpData, status: e.target.value })} className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-3 text-sm focus:outline-none">
-                    <option value="attending">Attending</option>
-                    <option value="declined">Declined</option>
-                  </select>
-                  <select value={rsvpData.guest_count} onChange={(e) => setRsvpData({ ...rsvpData, guest_count: parseInt(e.target.value) || 1 })} className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-3 text-sm focus:outline-none">
-                    {[1, 2, 3, 4, 5, 6].map((n) => (
-                      <option key={n} value={n}>{n} {n === 1 ? "Guest" : "Guests"}</option>
-                    ))}
-                  </select>
-                </div>
-                <textarea
-                  placeholder="Short blessing or message for the couple…"
-                  value={rsvpData.message}
-                  onChange={(e) => setRsvpData({ ...rsvpData, message: e.target.value })}
-                  rows="3"
-                  className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-3 text-sm focus:outline-none"
-                />
+                <select 
+                  value={rsvpData.status} 
+                  onChange={(e) => setRsvpData({ ...rsvpData, status: e.target.value })} 
+                  className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-3 text-sm focus:outline-none text-zinc-650"
+                >
+                  <option value="attending">Will Attend</option>
+                  <option value="declined">Will Decline</option>
+                </select>
                 <button
                   type="submit" disabled={rsvpLoading}
                   className="w-full text-white font-bold py-4 rounded-xl text-xs uppercase tracking-widest transition-colors duration-300 shadow-sm cursor-pointer disabled:opacity-50"
@@ -480,6 +475,22 @@ export default function IvoryBloom({ content = {}, mode = "live", onRsvpSubmit, 
                   {rsvpLoading ? "Sending RSVP…" : "Send RSVP"}
                 </button>
               </form>
+            )}
+          </section>
+        )}
+
+        {/* Attributions Section (Optional) */}
+        {(content.attribution_heading || content.attribution_names) && (
+          <section className="w-full max-w-xl bg-white border-x border-t border-zinc-200/40 px-12 py-16 text-center space-y-2 pb-28">
+            {content.attribution_heading && (
+              <span className="text-[10px] font-bold uppercase tracking-[0.25em] block" style={{ color: accentColor }}>
+                {content.attribution_heading}
+              </span>
+            )}
+            {content.attribution_names && (
+              <p className="font-serif text-2xl font-light italic text-zinc-900">
+                {content.attribution_names}
+              </p>
             )}
           </section>
         )}

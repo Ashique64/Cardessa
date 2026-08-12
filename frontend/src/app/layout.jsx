@@ -1,6 +1,6 @@
 import { Outfit, Playfair_Display } from "next/font/google";
 import "./globals.css";
-import { AuthProvider } from "@/context/AuthContext";
+import QueryProvider from "@/providers/QueryProvider";
 
 const sans = Outfit({
   variable: "--font-sans",
@@ -30,7 +30,7 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" className={`${sans.variable} ${serif.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col bg-brand-bg text-brand-text">
-        <AuthProvider>{children}</AuthProvider>
+        <QueryProvider>{children}</QueryProvider>
       </body>
     </html>
   );

@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { useAuth } from "@/context/AuthContext";
+import { useAuthStore } from "@/store/authStore";
 
 const fadeUp = {
   initial: { opacity: 0, y: 20 },
@@ -14,7 +14,9 @@ const fadeUp = {
 
 export default function LoginPage() {
   const router = useRouter();
-  const { user, login, isLoading: authLoading } = useAuth();
+  const user = useAuthStore((state) => state.user);
+  const login = useAuthStore((state) => state.login);
+  const authLoading = useAuthStore((state) => state.isLoading);
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
