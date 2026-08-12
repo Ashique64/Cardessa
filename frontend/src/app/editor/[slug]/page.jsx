@@ -448,6 +448,24 @@ export default function EditorPage() {
         return;
       }
 
+      if (orderData.simulated) {
+        alert("✨ Simulated sandbox payment initialized (Razorpay keys not set).");
+        try {
+          await apiClient.post("/orders/verify/", {
+            razorpay_order_id: orderData.razorpay_order_id,
+            razorpay_payment_id: "pay_simulated_" + Math.random().toString(36).substring(7),
+            razorpay_signature: "simulated_signature",
+          });
+          setIsPaid(true);
+          setIsPublished(true);
+          alert("✓ Invitation successfully published in Sandbox simulation!");
+        } catch (err) {
+          console.error(err);
+          alert("Simulated verification failed.");
+        }
+        return;
+      }
+
       // Load Razorpay dynamically if not present
       if (typeof window !== "undefined" && !window.Razorpay) {
         const loaded = await new Promise((resolve) => {

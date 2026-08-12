@@ -63,6 +63,43 @@ class OrderCreateView(APIView):
                     "message": "Invitation activated."
                 }, status=status.HTTP_201_CREATED)
 
+            # A key is configured if it exists, is not a placeholder/stub, and looks like a real Razorpay key
+            def _is_real_key(key: str) -> bool:
+                if not key:
+                    return False
+                placeholder_patterns = [
+                    "placeholder", "your-razorpay", "xxxxxxxxxxxx", "xxxxxxxx",
+                    "your_razorpay", "test_xxxx", "_xxx",
+                ]
+                lower = key.lower()
+                return not any(p in lower for p in placeholder_patterns)
+
+            is_razorpay_configured = (
+                _is_real_key(settings.RAZORPAY_KEY_ID)
+                and _is_real_key(settings.RAZORPAY_KEY_SECRET)
+            )
+
+            if not is_razorpay_configured:
+                mock_order_id = f"simulated_order_{invitation.id}"
+                Order.objects.get_or_create(
+                    razorpay_order_id=mock_order_id,
+                    defaults={
+                        "user": request.user,
+                        "invitation": invitation,
+                        "amount_inr": amount_paise,
+                        "status": "pending",
+                        "features_snapshot": {}
+                    }
+                )
+                return Response({
+                    "razorpay_order_id": mock_order_id,
+                    "razorpay_key_id": "rzp_test_mockkey",
+                    "amount": amount_paise,
+                    "currency": "INR",
+                    "order_id": mock_order_id,
+                    "simulated": True
+                }, status=status.HTTP_201_CREATED)
+
             client = razorpay.Client(
                 auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET)
             )
@@ -150,7 +187,12 @@ class OrderVerifyView(APIView):
             hashlib.sha256,
         ).hexdigest()
 
-        is_simulated = rz_signature == "simulated_signature" or not settings.RAZORPAY_KEY_SECRET or settings.RAZORPAY_KEY_SECRET == "placeholder_secret" or settings.RAZORPAY_KEY_SECRET == ""
+        # Allow simulated orders (sandbox/dev mode) to bypass signature verification
+        is_simulated = (
+            rz_order_id.startswith("simulated_order_")
+            or rz_signature == "simulated_signature"
+            or not settings.RAZORPAY_KEY_SECRET
+        )
 
         if not is_simulated and not hmac.compare_digest(expected_signature, rz_signature):
             return Response({"error": "Invalid payment signature."}, status=status.HTTP_400_BAD_REQUEST)

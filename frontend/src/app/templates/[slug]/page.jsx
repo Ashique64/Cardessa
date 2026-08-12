@@ -37,28 +37,12 @@ export default function TemplateDemoPage() {
     fetchTemplate();
   }, [slug]);
 
-  const handleUseDesign = async () => {
+  const handleUseDesign = () => {
     if (!user) {
       router.push("/login");
       return;
     }
-    if (user.is_superuser || user.is_staff) {
-      router.push(`/editor/${slug}`);
-      return;
-    }
-    setUseLoading(true);
-    try {
-      const res = await ordersApi.checkPlan();
-      if (res.data.has_plan) {
-        router.push(`/editor/${slug}`);
-      } else {
-        router.push("/pricing");
-      }
-    } catch {
-      router.push("/pricing");
-    } finally {
-      setUseLoading(false);
-    }
+    router.push(`/editor/${slug}`);
   };
 
   if (loading) {

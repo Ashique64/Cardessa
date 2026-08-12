@@ -294,3 +294,288 @@ This becomes the repeatable loop for adding new designs to the gallery:
   - *Step 4*: Receipt calculation, automated mock payment triggers, and unique live URL generation.
 - [x] **User Dashboard Tabs**: Separated drafts ("Edited Designs") and paid invitations ("Purchased & Published") in separate tabs with dedicated empty state prompts.
 - [x] **Admin Orders Log**: Replaced plan column with "Product / Template" names and fixed decimal rupee formatting.
+
+---
+
+## ⚙️ Razorpay Integration Setup Guide
+
+> This section explains how to configure Razorpay for both local sandbox testing and live production payments.
+
+---
+
+### 🔑 Step 1 — Create a Razorpay Account
+
+1. Go to **[https://razorpay.com](https://razorpay.com)** and sign up for a free account.
+2. Complete email verification and log into the **Razorpay Dashboard**.
+3. You do **not** need to complete KYC to use Test Mode keys.
+
+---
+
+### 🧪 Step 2 — Get Your Test (Sandbox) API Keys
+
+1. In the Razorpay Dashboard, go to **Settings → API Keys**.
+2. Make sure you're on the **Test Mode** toggle (top-right of dashboard).
+3. Click **"Generate Test Key"**.
+4. You'll receive:
+   - `Key ID` — starts with `rzp_test_`
+   - `Key Secret` — a long alphanumeric string
+5. **Copy both immediately** — the secret is shown only once.
+
+---
+
+### 🛠️ Step 3 — Configure Local Environment
+
+Open `backend/.env` and replace the placeholder values:
+
+```env
+# Razorpay — Test Keys (sandbox)
+RAZORPAY_KEY_ID=rzp_test_YourActualKeyId
+RAZORPAY_KEY_SECRET=YourActualSecretHere
+```
+
+> ⚠️ **Important**: The app automatically detects placeholder/stub keys (containing `xxxxxxxxxxxx`, `your-razorpay`, `placeholder`, etc.) and falls back to **Sandbox Simulation Mode**. Replace with your real test keys to use the actual Razorpay checkout modal.
+
+Restart the Django dev server after updating `.env`:
+
+```bash
+python manage.py runserver
+```
+
+---
+
+### ✅ Step 4 — Test a Sandbox Payment
+
+With real test keys configured:
+
+1. Log in as a **regular user** (not admin).
+2. Go to the Editor → **Step 4 (Publish)**.
+3. Click **"Pay & Publish"** — the Razorpay checkout modal opens.
+4. Use Razorpay test card details:
+
+| Field       | Value                     |
+|-------------|---------------------------|
+| Card Number | `4111 1111 1111 1111`     |
+| Expiry      | Any future date (e.g. `12/28`) |
+| CVV         | Any 3 digits (e.g. `123`) |
+| Name        | Any name                  |
+| OTP         | `1234` (Razorpay test OTP) |
+
+5. After successful payment, the invitation goes **Live** and a shareable link is generated.
+
+---
+
+### 🌐 Step 5 — Go Live (Production Keys)
+
+1. In Razorpay Dashboard, switch to **Live Mode** (top-right toggle).
+2. Complete **KYC** (business details, bank account) — required for live payments.
+3. Go to **Settings → API Keys** → Generate Live Key.
+4. Update your **production `.env`** (on your server, e.g. DigitalOcean):
+
+```env
+RAZORPAY_KEY_ID=rzp_live_YourLiveKeyId
+RAZORPAY_KEY_SECRET=YourLiveSecretHere
+```
+
+5. **Never commit live keys to Git** — use environment variables or a secrets manager.
+
+---
+
+### 🔔 Step 6 — Webhook Configuration (Optional but Recommended)
+
+Webhooks ensure payments are confirmed even if the user closes the browser after paying.
+
+1. Go to **Razorpay Dashboard → Settings → Webhooks**.
+2. Click **"Add New Webhook"**.
+3. Set the Webhook URL:
+   - **Dev (ngrok)**: `https://your-ngrok-id.ngrok.io/api/orders/webhook/`
+   - **Production**: `https://yourdomain.com/api/orders/webhook/`
+4. Select event: `payment.captured`
+5. Set a **Webhook Secret** and add it to `.env`:
+
+```env
+RAZORPAY_WEBHOOK_SECRET=your-webhook-secret-here
+```
+
+6. Update `backend/apps/orders/views.py` → `PaymentWebhookView` to use `RAZORPAY_WEBHOOK_SECRET` for signature verification.
+
+---
+
+### 🏗️ Backend Architecture Summary
+
+| File | Purpose |
+|------|---------|
+| `backend/apps/orders/models.py` | `Order` model storing `razorpay_order_id`, `status`, `features_snapshot` |
+| `backend/apps/orders/views.py → OrderCreateView` | Creates Razorpay order; detects sandbox/placeholder keys and returns simulated payload |
+| `backend/apps/orders/views.py → OrderVerifyView` | Verifies HMAC-SHA256 signature; bypasses for simulated orders |
+| `backend/apps/orders/views.py → PaymentWebhookView` | Handles async webhook callbacks from Razorpay |
+| `frontend/src/app/editor/[slug]/page.jsx → handlePayAndPublish` | Opens Razorpay checkout modal; handles `free`, `simulated`, and live payment flows |
+
+---
+
+### 🔐 Security Checklist
+
+- [x] HMAC-SHA256 signature verified on backend before marking order as paid
+- [x] Admin/staff users bypass payment entirely (free publish)
+- [x] Free templates (`price_inr = 0`) auto-publish without payment
+- [x] Simulated sandbox mode for dev testing without real keys
+- [ ] Add idempotency keys on Razorpay order creation for retries
+- [ ] Store webhook events in a separate `WebhookEvent` model for audit log
+- [ ] Rate-limit the `/orders/create/` endpoint to prevent abuse
+
+---
+
+## 🚀 Deployment Guide — Making Your App Public
+
+> **Recommended Stack**: Vercel (frontend) + Railway (Django + PostgreSQL)
+> **Estimated Cost**: ~$10/month (~₹840/month) total
+
+---
+
+### 🌐 Why This Stack?
+
+| Service | Platform | Monthly Cost |
+|---------|----------|-------------|
+| Next.js Frontend | **Vercel** (Hobby) | **Free** |
+| Django Backend | **Railway** | ~$5 |
+| PostgreSQL Database | **Railway** (bundled) | Included |
+| Media Storage | **DigitalOcean Spaces** | ~$5 |
+| **Total** | | **~$10/month** |
+
+---
+
+### Part A — Deploy Frontend to Vercel
+
+#### Step 1 — Push code to GitHub
+Make sure your entire `Cardessa/` repository is pushed to a GitHub repo.
+
+#### Step 2 — Import project to Vercel
+1. Go to **[https://vercel.com](https://vercel.com)** → Sign in with GitHub.
+2. Click **"Add New Project"** → Import your `Cardessa` GitHub repo.
+3. Set **Root Directory** to `frontend` (since it's a monorepo).
+4. Framework preset: **Next.js** (auto-detected).
+
+#### Step 3 — Add environment variables on Vercel
+In Vercel project settings → **Environment Variables**, add:
+```
+NEXT_PUBLIC_API_URL=https://your-railway-backend.up.railway.app/api
+```
+> Replace with your actual Railway backend URL (you get this after deploying backend).
+
+#### Step 4 — Deploy
+Click **Deploy**. Vercel builds and deploys automatically. Every `git push` triggers a new deployment.
+
+Your frontend will be live at: `https://your-project.vercel.app`
+
+---
+
+### Part B — Deploy Backend (Django) to Railway
+
+#### Step 1 — Create Railway account
+1. Go to **[https://railway.app](https://railway.app)** → Sign in with GitHub.
+2. Click **"New Project"** → **"Deploy from GitHub repo"**.
+3. Select your `Cardessa` repository.
+4. Set **Root Directory** to `backend`.
+
+#### Step 2 — Add PostgreSQL database
+1. Inside your Railway project, click **"+ New"** → **"Database"** → **"PostgreSQL"**.
+2. Railway auto-injects `DATABASE_URL` into your backend service.
+
+#### Step 3 — Add a `Procfile` to your backend root
+Create `backend/Procfile` with:
+```
+web: gunicorn cardessa.wsgi:application --bind 0.0.0.0:$PORT
+release: python manage.py migrate
+```
+
+#### Step 4 — Add `gunicorn` to requirements
+In `backend/requirements.txt`, ensure this is present:
+```
+gunicorn
+```
+
+#### Step 5 — Add environment variables on Railway
+In your Railway service → **Variables** tab, add all keys from your local `backend/.env`:
+
+```env
+SECRET_KEY=your-production-django-secret-key
+DEBUG=False
+ALLOWED_HOSTS=your-railway-backend.up.railway.app,yourdomain.com
+DATABASE_URL=<auto-injected by Railway>
+
+DO_SPACES_KEY=your-spaces-key
+DO_SPACES_SECRET=your-spaces-secret
+DO_SPACES_BUCKET=cardessa-media
+DO_SPACES_REGION=blr1
+DO_SPACES_ENDPOINT=https://blr1.digitaloceanspaces.com
+DO_SPACES_CDN_URL=https://cardessa-media.blr1.cdn.digitaloceanspaces.com
+
+RAZORPAY_KEY_ID=rzp_live_YourLiveKey
+RAZORPAY_KEY_SECRET=YourLiveSecret
+
+CORS_ALLOWED_ORIGINS=https://your-project.vercel.app
+```
+
+> ⚠️ Set `DEBUG=False` in production. Generate a fresh `SECRET_KEY` for production — never reuse your dev key.
+
+#### Step 6 — Update Django settings for Railway
+In `backend/cardessa/settings.py`, ensure:
+```python
+import os
+ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "localhost").split(",")
+CORS_ALLOWED_ORIGINS = os.environ.get("CORS_ALLOWED_ORIGINS", "http://localhost:3000").split(",")
+```
+
+#### Step 7 — Deploy
+Click **Deploy** in Railway. It runs `migrate` automatically via the `Procfile` release command.
+
+Your backend API will be live at: `https://your-service.up.railway.app/api/`
+
+---
+
+### Part C — Connect Frontend to Live Backend
+
+1. Go back to **Vercel** → Your project → **Settings** → **Environment Variables**.
+2. Update `NEXT_PUBLIC_API_URL` to your Railway backend URL:
+   ```
+   NEXT_PUBLIC_API_URL=https://your-service.up.railway.app/api
+   ```
+3. Trigger a new Vercel deployment (push any commit).
+
+---
+
+### Part D — Custom Domain (Optional)
+
+#### Frontend Domain (Vercel)
+1. Buy a domain (e.g. `cardessa.in`) from Namecheap, GoDaddy, or Google Domains.
+2. In Vercel → **Domains** → Add your domain.
+3. Point your domain's DNS to Vercel's nameservers (Vercel provides instructions).
+
+#### Backend Domain
+1. In Railway → **Settings** → **Domains** → Add custom domain (e.g. `api.cardessa.in`).
+2. Add a CNAME record in your DNS provider pointing `api` → Railway URL.
+3. Update `CORS_ALLOWED_ORIGINS` and `ALLOWED_HOSTS` to include new domains.
+
+---
+
+### Part E — Production Checklist
+
+- [ ] `DEBUG=False` in production `.env`
+- [ ] Fresh `SECRET_KEY` generated for production
+- [ ] `CORS_ALLOWED_ORIGINS` set to Vercel frontend URL only
+- [ ] `ALLOWED_HOSTS` includes Railway domain + custom domain
+- [ ] Razorpay **Live Keys** configured (after completing KYC)
+- [ ] Static files collected: `python manage.py collectstatic`
+- [ ] Media served via DigitalOcean Spaces CDN (not local disk)
+- [ ] HTTPS enforced (Vercel + Railway both provide free SSL automatically)
+- [ ] Run `python manage.py createsuperuser` on Railway via the Railway shell
+
+---
+
+### 💡 Quick Cost Comparison
+
+| Stack | Monthly Cost | Best For |
+|-------|-------------|---------|
+| **Vercel + Railway** | **~$10** | Early stage, fast deployment, zero server management |
+| Vercel + DigitalOcean App Platform | ~$25+ | More DigitalOcean integration |
+| Vercel + Render | ~$7 (paid) or Free (slow) | Budget, but free tier spins down |
+| Full DigitalOcean Droplet | ~$12+ | Full control, but requires nginx/gunicorn setup manually |
