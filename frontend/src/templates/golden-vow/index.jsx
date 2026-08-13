@@ -172,6 +172,8 @@ export default function GoldenVow({ content = {}, mode = "live", onRsvpSubmit, h
   const googleMapLink = content.google_map_link || "";
   const musicUrl     = content.music_url     || null;
   const musicEnabled = content.music_enabled !== false;
+  const accentColor  = content.accent_color  || PALETTE.gold;
+  const bgColor      = content.bg_color      || PALETTE.cream;
 
   const displayOrder = content.name_display_order || "bride_first";
   const partner1     = displayOrder === "bride_first" ? brideName : groomName;
@@ -312,7 +314,7 @@ export default function GoldenVow({ content = {}, mode = "live", onRsvpSubmit, h
   return (
     <div
       className="min-h-screen flex flex-col items-center overflow-x-hidden select-none relative"
-      style={{ backgroundColor: PALETTE.cream }}
+      style={{ backgroundColor: bgColor }}
     >
       {/* Self-contained styling to declare template font classes */}
       <style dangerouslySetInnerHTML={{ __html: `
@@ -352,23 +354,23 @@ export default function GoldenVow({ content = {}, mode = "live", onRsvpSubmit, h
             exit={{ opacity: 0, scale: 1.02 }}
             transition={{ duration: 1.2, ease: [0.85, 0, 0.15, 1] }}
             className="fixed inset-0 z-50 flex flex-col items-center justify-center p-6 text-center select-none"
-            style={{ backgroundColor: PALETTE.cream }}
+            style={{ backgroundColor: bgColor }}
           >
             {/* Elegant double gold frames for cover screen */}
-            <div className="absolute inset-5 rounded-3xl pointer-events-none" style={{ border: `1px solid ${PALETTE.gold}45` }} />
-            <div className="absolute inset-6 rounded-3xl pointer-events-none" style={{ border: `0.5px solid ${PALETTE.gold}25` }} />
+            <div className="absolute inset-5 rounded-3xl pointer-events-none" style={{ border: `1px solid ${accentColor}45` }} />
+            <div className="absolute inset-6 rounded-3xl pointer-events-none" style={{ border: `0.5px solid ${accentColor}25` }} />
 
             <div className="max-w-md w-full space-y-12 relative z-10">
               <div className="space-y-4">
-                <span className="ff-sans text-[10px] font-semibold uppercase tracking-[0.25em]" style={{ color: PALETTE.gold }}>
+                <span className="ff-sans text-[10px] font-semibold uppercase tracking-[0.25em]" style={{ color: accentColor }}>
                   {ceremonyType} Announcement
                 </span>
                 
                 {/* Monogram Seal */}
                 <div className="relative mx-auto w-36 h-36 flex items-center justify-center my-6">
                   <svg className="absolute inset-0 w-full h-full text-zinc-300" viewBox="0 0 100 100">
-                    <circle cx="50" cy="50" r="45" fill="none" stroke={PALETTE.gold} strokeWidth="1" strokeDasharray="3 3" opacity="0.6" />
-                    <circle cx="50" cy="50" r="42" fill="none" stroke={PALETTE.gold} strokeWidth="0.5" opacity="0.4" />
+                    <circle cx="50" cy="50" r="45" fill="none" stroke={accentColor} strokeWidth="1" strokeDasharray="3 3" opacity="0.6" />
+                    <circle cx="50" cy="50" r="42" fill="none" stroke={accentColor} strokeWidth="0.5" opacity="0.4" />
                   </svg>
                   <div className="text-center relative z-10 px-4 space-y-1">
                     <span className="ff-serif text-3xl font-light text-zinc-800 leading-tight block">
@@ -388,10 +390,10 @@ export default function GoldenVow({ content = {}, mode = "live", onRsvpSubmit, h
                 <button
                   onClick={handleOpenInvite}
                   className="h-16 w-16 rounded-full border border-zinc-200 bg-zinc-800 flex items-center justify-center text-white shadow-xl hover:scale-105 active:scale-95 transition-transform duration-300 cursor-pointer relative"
-                  style={{ background: `radial-gradient(circle, ${PALETTE.gold}ee, ${PALETTE.gold})` }}
+                  style={{ background: `radial-gradient(circle, ${accentColor}ee, ${accentColor})` }}
                   aria-label="Open invitation"
                 >
-                  <span className="absolute inset-0 rounded-full animate-ping opacity-35 pointer-events-none" style={{ border: `1px solid ${PALETTE.gold}` }} />
+                  <span className="absolute inset-0 rounded-full animate-ping opacity-35 pointer-events-none" style={{ border: `1px solid ${accentColor}` }} />
                   <span className="ff-sans text-xs font-semibold tracking-wider text-white">OPEN</span>
                 </button>
                 <span className="ff-sans text-[9px] uppercase tracking-widest font-semibold text-stone-400 animate-pulse">
@@ -410,7 +412,7 @@ export default function GoldenVow({ content = {}, mode = "live", onRsvpSubmit, h
         <section
           className="relative w-full flex flex-col justify-between overflow-hidden"
           style={{
-            backgroundColor: PALETTE.cream,
+            backgroundColor: bgColor,
             minHeight: "100svh",
           }}
         >
@@ -499,7 +501,7 @@ export default function GoldenVow({ content = {}, mode = "live", onRsvpSubmit, h
           </div>
 
           {/* Gold Stepped Arch Frame */}
-          <SteppedArchFrame gold={PALETTE.gold} isOpen={isOpen} isLive={isLive} />
+          <SteppedArchFrame gold={accentColor} isOpen={isOpen} isLive={isLive} />
 
           {/* Core Content Inside Arch */}
           <div
@@ -517,14 +519,14 @@ export default function GoldenVow({ content = {}, mode = "live", onRsvpSubmit, h
               {isLive ? (
                 <>
                   <motion.div variants={fadeUp(0)} initial="hidden" animate={isOpen ? "visible" : "hidden"}>
-                    <GoldHeart size={10} gold={PALETTE.gold} />
+                    <GoldHeart size={10} gold={accentColor} />
                   </motion.div>
                   <motion.p
                     variants={fadeUp(1)}
                     initial="hidden"
                     animate={isOpen ? "visible" : "hidden"}
                     className="ff-sans uppercase font-medium tracking-[0.24em] text-[10px]"
-                    style={{ color: PALETTE.gold }}
+                    style={{ color: accentColor }}
                   >
                     {ceremonyType}
                   </motion.p>
@@ -532,11 +534,11 @@ export default function GoldenVow({ content = {}, mode = "live", onRsvpSubmit, h
               ) : (
                 <>
                   <div>
-                    <GoldHeart size={10} gold={PALETTE.gold} />
+                    <GoldHeart size={10} gold={accentColor} />
                   </div>
                   <p
                     className="ff-sans uppercase font-medium tracking-[0.24em] text-[10px]"
-                    style={{ color: PALETTE.gold }}
+                    style={{ color: accentColor }}
                   >
                     {ceremonyType}
                   </p>
@@ -575,14 +577,14 @@ export default function GoldenVow({ content = {}, mode = "live", onRsvpSubmit, h
                       animate={isOpen ? { scaleX: 1 } : { scaleX: 0 }}
                       transition={{ duration: 1.4, ease: [0.16, 1, 0.3, 1], delay: 0.6 }}
                       className="flex-1 h-px origin-right"
-                      style={{ backgroundColor: `${PALETTE.gold}70` }}
+                      style={{ backgroundColor: `${accentColor}70` }}
                     />
                     <motion.span
                       initial={{ opacity: 0, scale: 0.7, rotate: -15 }}
                       animate={isOpen ? { opacity: 1, scale: 1, rotate: 0 } : { opacity: 0, scale: 0.7, rotate: -15 }}
                       transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1], delay: 0.75 }}
                       className="ff-script text-3xl"
-                      style={{ color: PALETTE.gold }}
+                      style={{ color: accentColor }}
                     >
                       &amp;
                     </motion.span>
@@ -591,24 +593,24 @@ export default function GoldenVow({ content = {}, mode = "live", onRsvpSubmit, h
                       animate={isOpen ? { scaleX: 1 } : { scaleX: 0 }}
                       transition={{ duration: 1.4, ease: [0.16, 1, 0.3, 1], delay: 0.6 }}
                       className="flex-1 h-px origin-left"
-                      style={{ backgroundColor: `${PALETTE.gold}70` }}
+                      style={{ backgroundColor: `${accentColor}70` }}
                     />
                   </>
                 ) : (
                   <>
                     <div
                       className="flex-1 h-px"
-                      style={{ backgroundColor: `${PALETTE.gold}70` }}
+                      style={{ backgroundColor: `${accentColor}70` }}
                     />
                     <span
                       className="ff-script text-3xl"
-                      style={{ color: PALETTE.gold }}
+                      style={{ color: accentColor }}
                     >
                       &amp;
                     </span>
                     <div
                       className="flex-1 h-px"
-                      style={{ backgroundColor: `${PALETTE.gold}70` }}
+                      style={{ backgroundColor: `${accentColor}70` }}
                     />
                   </>
                 )}
@@ -642,11 +644,11 @@ export default function GoldenVow({ content = {}, mode = "live", onRsvpSubmit, h
                   animate={isOpen ? "visible" : "hidden"}
                   className="pt-2"
                 >
-                  <GoldHeart size={8} gold={PALETTE.gold} />
+                  <GoldHeart size={8} gold={accentColor} />
                 </motion.div>
               ) : (
                 <div className="pt-2">
-                  <GoldHeart size={8} gold={PALETTE.gold} />
+                  <GoldHeart size={8} gold={accentColor} />
                 </div>
               )}
 
@@ -685,7 +687,7 @@ export default function GoldenVow({ content = {}, mode = "live", onRsvpSubmit, h
               >
                 <p
                   className="ff-sans text-[8px] uppercase tracking-[0.25em] font-semibold animate-pulse"
-                  style={{ color: PALETTE.gold }}
+                  style={{ color: accentColor }}
                 >
                   Scroll to explore
                 </p>
@@ -694,7 +696,7 @@ export default function GoldenVow({ content = {}, mode = "live", onRsvpSubmit, h
               <div className="space-y-2 mt-8">
                 <p
                   className="ff-sans text-[8px] uppercase tracking-[0.25em] font-semibold animate-pulse"
-                  style={{ color: PALETTE.gold }}
+                  style={{ color: accentColor }}
                 >
                   Scroll to explore
                 </p>
