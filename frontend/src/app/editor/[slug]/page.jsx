@@ -182,6 +182,18 @@ export default function EditorPage() {
     return () => resetEditor();
   }, [resetEditor]);
 
+  // Lock background scroll when phone preview modal is open
+  useEffect(() => {
+    if (showPhonePreview) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [showPhonePreview]);
+
   // Redirect if not logged in
   useEffect(() => {
     if (!authLoading && !user) {

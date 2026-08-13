@@ -21,11 +21,13 @@
 import IvoryBloom from "./ivory-bloom";
 import FloralArch from "./floral-arch";
 import BeginForever from "./begin-forever";
+import GoldenVow from "./golden-vow";
 
 export const TEMPLATE_REGISTRY = {
   "ivory-bloom": IvoryBloom,
   "floral-arch": FloralArch,
   "begin-forever": BeginForever,
+  "golden-vow": GoldenVow,
 };
 
 /**

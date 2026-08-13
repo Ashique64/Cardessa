@@ -32,7 +32,7 @@ export default function TemplatesPage() {
   const [activeSort, setActiveSort] = useState("newest");      // default to newest arrivals
   const [activeCategory, setActiveCategory] = useState("all"); // all | <slug>
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 8;
+  const itemsPerPage = 12;
   const gridRef = useRef(null);
 
   // ── Loading slug (Use Design button) ────────────────────────────────────────
@@ -225,15 +225,10 @@ export default function TemplatesPage() {
           <motion.div
             ref={gridRef}
             layout
-            className="grid gap-8 sm:grid-cols-2 lg:grid-cols-2"
+            className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3"
           >
             <AnimatePresence mode="popLayout">
               {paginatedTemplates.map((tpl) => {
-                // Category labels for the card (e.g. "Wedding · Engagement")
-                const categoryLabels = (tpl.categories || [])
-                  .map((c) => c.name)
-                  .join(" · ");
-
                 return (
                   <motion.div
                     layout
@@ -241,76 +236,60 @@ export default function TemplatesPage() {
                     initial={{ opacity: 0, y: 15 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -15 }}
-                    whileHover={{ y: -6 }}
+                    whileHover={{ y: -8 }}
                     transition={{
                       type: "spring", stiffness: 280, damping: 28,
                       layout: { duration: 0.35, type: "tween", ease: "easeInOut" },
                     }}
-                    className="bg-brand-bg rounded-2xl border border-brand-border/60 p-8 flex flex-col justify-between shadow-2xs hover:border-brand-accent/40 hover:shadow-[0_12px_30px_-10px_rgba(95,125,103,0.12)] transition-[border-color,box-shadow] duration-300"
+                    className="bg-brand-bg border border-brand-border/60 rounded-2xl p-6 flex flex-col justify-between shadow-2xs hover:shadow-lg transition-all duration-300"
                   >
                     <div>
-                      {/* Badge tags + category tags */}
-                      <div className="flex items-center justify-between mb-5 flex-wrap gap-2">
-                        <div className="flex gap-1.5">
+                      <div className="flex justify-between items-center mb-4">
+                        <span className="text-[9px] font-bold uppercase tracking-widest bg-brand-bg-soft border border-brand-border/60 px-2 py-0.5 rounded text-brand-text-muted">
+                          {tpl.price_inr === 0 ? "Free" : `₹${tpl.price_inr}`}
+                        </span>
+                        {tpl.tier && (
                           <span
-                            className={`inline-flex items-center rounded-md px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-widest ${
+                            className={`inline-flex items-center rounded px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest border ${
                               tpl.tier === "new"
-                                ? "bg-blue-50 text-blue-600 border border-blue-200"
+                                ? "bg-blue-50 text-blue-600 border-blue-200/60"
                                 : tpl.tier === "elegant"
-                                ? "bg-emerald-50 text-emerald-600 border border-emerald-200"
-                                : "bg-purple-50 text-purple-600 border border-purple-200"
+                                ? "bg-emerald-50 text-emerald-600 border-emerald-200/60"
+                                : tpl.tier === "luxe"
+                                ? "bg-purple-50 text-purple-600 border-purple-200/60"
+                                : "bg-zinc-100 text-zinc-500 border-zinc-200/60"
                             }`}
                           >
-                            {tpl.tier === "elegant" ? "Elegant" : tpl.tier === "luxe" ? "Luxe" : tpl.tier}
-                          </span>
-                        </div>
-
-                        {categoryLabels && (
-                          <span className="text-[10px] text-brand-text-muted font-medium tracking-wide">
-                            {categoryLabels}
+                            {tpl.tier}
                           </span>
                         )}
                       </div>
-
-                      {/* Template name + thumbnail/icon + description */}
-                      <div className="flex items-start gap-4 mb-4">
-                        <div className="h-12 w-12 bg-brand-bg-soft rounded-xl border border-brand-border flex items-center justify-center shrink-0 overflow-hidden">
-                          {tpl.thumbnail ? (
-                            <img
-                              src={tpl.thumbnail}
-                              alt={tpl.name}
-                              className="h-full w-full object-cover"
-                            />
-                          ) : (
-                            <span className="text-xl">🎴</span>
-                          )}
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex justify-between items-baseline gap-2">
-                            <h3 className="text-2xl font-serif font-medium text-brand-dark">{tpl.name}</h3>
-                            <span className="text-xs font-semibold text-brand-dark/80 shrink-0">
-                              {tpl.price_inr === 0 ? "Free" : `₹${tpl.price_inr}`}
-                            </span>
-                          </div>
-                          <p className="text-brand-text-muted text-xs leading-relaxed mt-2 line-clamp-3">
-                            {tpl.description}
-                          </p>
-                        </div>
+                      
+                      <div className="h-48 w-full bg-brand-bg-soft rounded-xl border border-brand-border flex items-center justify-center overflow-hidden mb-6 relative">
+                        {tpl.thumbnail ? (
+                          <img src={tpl.thumbnail} alt={tpl.name} className="h-full w-full object-cover" />
+                        ) : (
+                          <span className="text-4xl">🎴</span>
+                        )}
                       </div>
+
+                      <h3 className="font-serif text-2xl font-light text-brand-dark mb-2">{tpl.name}</h3>
+                      <p className="text-xs text-brand-text-muted leading-relaxed line-clamp-3 mb-6">
+                        {tpl.description}
+                      </p>
                     </div>
 
-                    {/* Action buttons */}
-                    <div className="flex gap-4 pt-6">
+                    <div className="flex gap-3 mt-auto">
                       <Link
                         href={`/templates/${tpl.slug}`}
-                        className="flex-1 text-center bg-brand-dark hover:bg-brand-accent text-brand-bg hover:text-white font-bold py-3 px-4 rounded-lg text-xs uppercase tracking-wider transition-colors duration-300 shadow-xs"
+                        className="flex-1 text-center bg-brand-bg-soft hover:bg-brand-dark hover:text-white border border-brand-border text-brand-dark py-3 rounded-lg text-xs font-bold uppercase tracking-wider transition-all duration-300"
                       >
-                        Live Preview
+                        Preview
                       </Link>
                       <button
                         onClick={() => handleUseDesign(tpl)}
                         disabled={loadingSlug !== null}
-                        className="flex-1 text-center bg-brand-bg-soft hover:bg-brand-dark text-brand-dark hover:text-brand-bg font-bold py-3 px-4 rounded-lg text-xs uppercase tracking-wider transition-colors duration-300 border border-brand-border/60 cursor-pointer disabled:opacity-50"
+                        className="flex-1 text-center bg-brand-dark hover:bg-brand-accent text-brand-bg hover:text-brand-dark py-3 rounded-lg text-xs font-bold uppercase tracking-wider transition-all duration-300 cursor-pointer disabled:opacity-50"
                       >
                         {loadingSlug === tpl.slug ? "Checking…" : "Use Design"}
                       </button>

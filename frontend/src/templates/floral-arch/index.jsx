@@ -3,97 +3,242 @@
 import React, { useEffect, useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
-// Custom premium motion section component
-function RevealSection({ children, className = "", delay = 0 }) {
+/* ═══════════════════════════════════════════════════
+   PALETTE CONSTANTS
+═══════════════════════════════════════════════════ */
+const PALETTE = {
+  ivory:   "#FBF8F2",
+  gold:    "#B08D57",
+  olive:   "#4A4A3A",
+  taupe:   "#6B6455",
+  sage:    "#8A9673",
+  cream:   "#F5F0E8",
+};
+
+/* ═══════════════════════════════════════════════════
+   REUSABLE: viewport-triggered reveal wrapper
+═══════════════════════════════════════════════════ */
+function RevealSection({ children, className = "", style = {}, delay = 0 }) {
   return (
     <motion.section
-      initial={{ opacity: 0, y: 28 }}
+      initial={{ opacity: 0, y: 24 }}
       whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, amount: 0.25 }}
-      transition={{ duration: 0.95, delay, ease: [0.215, 0.61, 0.355, 1] }}
+      viewport={{ once: true, amount: 0.1 }}
+      transition={{ duration: 0.88, delay, ease: [0.215, 0.61, 0.355, 1] }}
       className={className}
+      style={style}
     >
       {children}
     </motion.section>
   );
 }
 
+/* ═══════════════════════════════════════════════════
+   SMALL GOLD HEART ICON
+═══════════════════════════════════════════════════ */
+const GoldHeart = ({ size = 10, gold = PALETTE.gold }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" className="inline-block mx-auto">
+    <path
+      d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
+      fill={gold}
+    />
+  </svg>
+);
+
+/* ═══════════════════════════════════════════════════
+   GOLD AMPERSAND DIVIDER with horizontal rules
+═══════════════════════════════════════════════════ */
+const AmpersandDivider = ({ gold = PALETTE.gold }) => (
+  <div className="flex items-center justify-center gap-4 w-full max-w-[240px] mx-auto my-1">
+    <div className="flex-1 h-px" style={{ backgroundColor: `${gold}60` }} />
+    <span
+      style={{
+        fontFamily: "'Great Vibes', cursive",
+        fontSize: 30,
+        color: gold,
+        lineHeight: 1,
+        display: "block",
+      }}
+    >
+      &amp;
+    </span>
+    <div className="flex-1 h-px" style={{ backgroundColor: `${gold}60` }} />
+  </div>
+);
+
+/* ═══════════════════════════════════════════════════
+   HEART + RULE DIVIDER
+═══════════════════════════════════════════════════ */
+const HeartDivider = ({ gold = PALETTE.gold }) => (
+  <div className="flex items-center justify-center gap-3 w-full max-w-[200px] mx-auto my-3">
+    <div className="flex-1 h-px" style={{ backgroundColor: `${gold}50` }} />
+    <GoldHeart size={9} gold={gold} />
+    <div className="flex-1 h-px" style={{ backgroundColor: `${gold}50` }} />
+  </div>
+);
+
+/* ═══════════════════════════════════════════════════
+   LEAF SPRIG DIVIDER (SVG)
+═══════════════════════════════════════════════════ */
+const LeafSprigDivider = ({ sage = PALETTE.sage, gold = PALETTE.gold }) => (
+  <div className="flex items-center justify-center gap-2 my-3">
+    <div className="h-px w-12" style={{ backgroundColor: `${gold}40` }} />
+    <svg width="32" height="16" viewBox="0 0 32 16">
+      <path d="M16 8 Q12 2 6 4" stroke={sage} strokeWidth="1" fill="none" strokeLinecap="round" />
+      <ellipse cx="8" cy="5" rx="3" ry="5" fill={sage} opacity="0.6" transform="rotate(-30 8 5)" />
+      <path d="M16 8 Q20 2 26 4" stroke={sage} strokeWidth="1" fill="none" strokeLinecap="round" />
+      <ellipse cx="24" cy="5" rx="3" ry="5" fill={sage} opacity="0.6" transform="rotate(30 24 5)" />
+      <circle cx="16" cy="7" r="2" fill={gold} opacity="0.7" />
+    </svg>
+    <div className="h-px w-12" style={{ backgroundColor: `${gold}40` }} />
+  </div>
+);
+
+/* ═══════════════════════════════════════════════════
+   DATE ROW — 3-column
+═══════════════════════════════════════════════════ */
+const DateRow = ({ dayOfWeek, eventDay, eventMonth, eventYear, eventTime, gold = PALETTE.gold, taupe = PALETTE.taupe }) => (
+  <div className="flex items-stretch justify-center mx-auto w-full max-w-[260px]">
+    {/* Day of week */}
+    <div className="flex-1 flex items-center justify-center border-r py-3 pr-3" style={{ borderColor: `${gold}45` }}>
+      <span style={{ fontFamily: "'Montserrat', sans-serif", fontSize: 9, letterSpacing: "0.18em", textTransform: "uppercase", color: taupe, fontWeight: 600 }}>
+        {dayOfWeek}
+      </span>
+    </div>
+
+    {/* Center: date number + month + year */}
+    <div className="flex flex-col items-center justify-center px-4 py-1">
+      <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 52, color: gold, fontWeight: 300, lineHeight: 1 }}>
+        {eventDay}
+      </span>
+      <span style={{ fontFamily: "'Montserrat', sans-serif", fontSize: 8, letterSpacing: "0.22em", textTransform: "uppercase", color: taupe, marginTop: 2 }}>
+        {eventMonth}
+      </span>
+      <span style={{ fontFamily: "'Montserrat', sans-serif", fontSize: 8, letterSpacing: "0.15em", color: `${taupe}99` }}>
+        {eventYear}
+      </span>
+    </div>
+
+    {/* Time */}
+    <div className="flex-1 flex flex-col items-center justify-center border-l py-3 pl-3 gap-0.5" style={{ borderColor: `${gold}45` }}>
+      <span style={{ fontFamily: "'Montserrat', sans-serif", fontSize: 9, letterSpacing: "0.12em", textTransform: "uppercase", color: taupe, fontWeight: 600 }}>AT</span>
+      <span style={{ fontFamily: "'Montserrat', sans-serif", fontSize: 9, letterSpacing: "0.1em", textTransform: "uppercase", color: taupe, fontWeight: 600 }}>{eventTime}</span>
+    </div>
+  </div>
+);
+
+/* ═══════════════════════════════════════════════════
+   ARCH FRAME SVG (behind text, gold border)
+═══════════════════════════════════════════════════ */
+const ArchFrame = ({ gold = PALETTE.gold }) => (
+  <svg
+    viewBox="0 0 320 580"
+    preserveAspectRatio="none"
+    className="absolute inset-0 w-full h-full pointer-events-none"
+    style={{ zIndex: 2 }}
+    aria-hidden="true"
+  >
+    {/* Outer arch: starts partway down, curves into arch at top, rectangular sides + bottom */}
+    <path
+      d="M 20 580 L 20 110 Q 20 28 160 28 Q 300 28 300 110 L 300 580"
+      fill="none"
+      stroke={gold}
+      strokeWidth="1"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      opacity="0.7"
+    />
+    {/* Inner dashed arch for depth */}
+    <path
+      d="M 30 580 L 30 116 Q 30 40 160 40 Q 290 40 290 116 L 290 580"
+      fill="none"
+      stroke={gold}
+      strokeWidth="0.5"
+      strokeDasharray="4 4"
+      strokeLinecap="round"
+      opacity="0.4"
+    />
+    {/* Small top fleur ornament */}
+    <circle cx="160" cy="28" r="2.5" fill={gold} opacity="0.6" />
+    <circle cx="160" cy="28" r="5" fill="none" stroke={gold} strokeWidth="0.6" opacity="0.5" />
+  </svg>
+);
+
+/* ═══════════════════════════════════════════════════
+   MAIN COMPONENT
+═══════════════════════════════════════════════════ */
 export default function FloralArch({ content = {}, mode = "live", onRsvpSubmit, hideBranding = false }) {
-  const isLive = mode === "live";
   const isPreOpen = mode === "preview" || mode === "editor";
 
-  // Resolve content fields with sensible elegant fallbacks
-  const groomName = content.groom_name || "Aarav";
-  const brideName = content.bride_name || "Ananya";
-  const venue = content.venue_name || "Heritage Garden Pavilion";
-  const venueAddress = content.venue_address || "Ecr Road, Chennai, TN";
-  const musicUrl = content.music_url || null;
+  /* ── Content resolution ── */
+  const groomName    = content.groom_name    || "Omar";
+  const brideName    = content.bride_name    || "Tia";
+  const venue        = content.venue_name    || "The Garden Pavilion";
+  const venueAddress = content.venue_address || "123 Blossom Way, Loveville, CA 92345";
+  const musicUrl     = content.music_url     || null;
   const musicEnabled = content.music_enabled !== false;
-  const couplePhoto = content.couple_photo || null;
+  const couplePhoto  = content.couple_photo  || null;
+  const tagline      = content.tagline       || "TOGETHER WITH THEIR FAMILIES";
+  const inviteMsg    = content.invite_message || "JOYFULLY INVITE YOU TO CELEBRATE THEIR WEDDING";
+  const receptionNote = content.reception_note || "reception to follow";
 
-  // Custom Palette variables
-  const ivory = content.bg_color || "#FBF7EF";       // base background
-  const parchment = content.bg_color ? `${content.bg_color}ee` : "#F3E9D4";   // card/section backgrounds
-  const gold = content.accent_color || "#C9A66B";        // accents, dividers, borders
-  const goldDeep = content.accent_color || "#9C7A3C";    // emphasis
-  const sage = content.accent_color || "#6E7F5C";        // botanical theme color
-  const ink = content.bg_color === "#121212" ? "#F5F5F5" : "#2B2620";         // high contrast text depending on dark theme
+  /* ── Palette ── */
+  const gold  = PALETTE.gold;
+  const olive = PALETTE.olive;
+  const taupe = PALETTE.taupe;
+  const sage  = PALETTE.sage;
+  const ivory = PALETTE.ivory;
 
-  const rawDate = content.event_date || null;
-  const displayDate = rawDate
-    ? new Date(rawDate).toLocaleDateString("en-US", { day: "numeric", month: "long", year: "numeric" })
-    : "December 18, 2026";
-  const displayTime = content.event_time ? `${content.event_time}` : "10:30 AM";
+  /* ── Date parsing ── */
+  const rawDate  = content.event_date || null;
+  const dateObj  = rawDate ? new Date(rawDate) : new Date("2025-05-24");
+  const DAYS     = ["SUNDAY","MONDAY","TUESDAY","WEDNESDAY","THURSDAY","FRIDAY","SATURDAY"];
+  const dayOfWeek  = DAYS[dateObj.getDay()];
+  const eventDay   = dateObj.getDate();
+  const eventMonth = dateObj.toLocaleDateString("en-US", { month: "long" }).toUpperCase();
+  const eventYear  = dateObj.getFullYear();
+  const eventTime  = content.event_time || "04:00 PM";
+
+  /* ── Name display order ── */
   const displayOrder = content.name_display_order || "bride_first";
-  const partner1 = displayOrder === "bride_first" ? brideName : groomName;
-  const partner2 = displayOrder === "bride_first" ? groomName : brideName;
-  const initials = (partner1[0] || "") + (partner2[0] || "");
+  const name1 = displayOrder === "bride_first" ? brideName : groomName;  // top name
+  const name2 = displayOrder === "bride_first" ? groomName : brideName;  // bottom name
+  const initial1 = (name1[0] || "T").toUpperCase();
+  const initial2 = (name2[0] || "O").toUpperCase();
+  const initials  = initial1 + initial2;
 
   const ceremonyType = content.ceremony_type || "Wedding";
-  const brideParents = content.bride_parents || "";
-  const groomParents = content.groom_parents || "";
-  let parentsGreeting = "Together with their families";
-  if (brideParents && groomParents) {
-    parentsGreeting = `Together with their parents\n${brideParents} & ${groomParents}`;
-  } else if (brideParents) {
-    parentsGreeting = `Together with their parents, ${brideParents}`;
-  } else if (groomParents) {
-    parentsGreeting = `Together with their parents, ${groomParents}`;
-  }
 
-  // Cover / audio state
-  const [isOpen, setIsOpen] = useState(isPreOpen);
+  /* ── State ── */
+  const [isOpen, setIsOpen]   = useState(isPreOpen);
   const [isMuted, setIsMuted] = useState(true);
   const audioRef = useRef(null);
 
-  // Countdown
+  /* ── Countdown ── */
   const [countdown, setCountdown] = useState({ days: 0, hours: 0, mins: 0, secs: 0 });
   useEffect(() => {
     if (!rawDate) return;
-    const target = new Date(`${rawDate}T10:30:00`).getTime();
+    const target = new Date(`${rawDate}T${content.event_time || "16:00"}`).getTime();
     const tick = () => {
       const diff = target - Date.now();
       if (diff < 0) return;
       setCountdown({
-        days: Math.floor(diff / 86400000),
+        days:  Math.floor(diff / 86400000),
         hours: Math.floor((diff % 86400000) / 3600000),
-        mins: Math.floor((diff % 3600000) / 60000),
-        secs: Math.floor((diff % 60000) / 1000),
+        mins:  Math.floor((diff % 3600000) / 60000),
+        secs:  Math.floor((diff % 60000) / 1000),
       });
     };
     tick();
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
-  }, [rawDate]);
+  }, [rawDate, content.event_time]);
 
-  // RSVP Form state
-  const [rsvpData, setRsvpData] = useState({
-    guest_name: "", email: "", phone: "",
-    status: "attending", guest_count: 1, message: "",
-  });
+  /* ── RSVP ── */
+  const [rsvpData,      setRsvpData]      = useState({ guest_name: "", status: "attending" });
   const [rsvpSubmitted, setRsvpSubmitted] = useState(false);
-  const [rsvpLoading, setRsvpLoading] = useState(false);
-  const [rsvpError, setRsvpError] = useState("");
+  const [rsvpLoading,   setRsvpLoading]   = useState(false);
+  const [rsvpError,     setRsvpError]     = useState("");
 
   const handleOpenInvite = () => {
     setIsOpen(true);
@@ -106,103 +251,133 @@ export default function FloralArch({ content = {}, mode = "live", onRsvpSubmit, 
   const toggleAudio = () => {
     if (!audioRef.current) return;
     if (isMuted) { audioRef.current.play().catch(() => {}); setIsMuted(false); }
-    else { audioRef.current.pause(); setIsMuted(true); }
+    else          { audioRef.current.pause(); setIsMuted(true); }
   };
 
   const handleRsvpSubmit = async (e) => {
     e.preventDefault();
-    if (!onRsvpSubmit) {
-      setRsvpSubmitted(true);
-      return;
-    }
-    setRsvpLoading(true);
-    setRsvpError("");
-    try {
-      await onRsvpSubmit(rsvpData);
-      setRsvpSubmitted(true);
-    } catch (err) {
-      setRsvpError(err?.message || "Failed to submit RSVP.");
-    } finally {
-      setRsvpLoading(false);
-    }
+    if (!onRsvpSubmit) { setRsvpSubmitted(true); return; }
+    setRsvpLoading(true); setRsvpError("");
+    try   { await onRsvpSubmit(rsvpData); setRsvpSubmitted(true); }
+    catch (err) { setRsvpError(err?.message || "Failed to submit RSVP."); }
+    finally { setRsvpLoading(false); }
   };
 
+  /* ── Motion variants ── */
+  const fadeUp = (i = 0) => ({
+    hidden:  { opacity: 0, y: 18 },
+    visible: {
+      opacity: 1, y: 0,
+      transition: { duration: 1.0, ease: [0.16, 1, 0.3, 1], delay: 0.4 + i * 0.18 }
+    },
+  });
+
+  const slideInTL = {
+    hidden:  { x: -36, y: -36, opacity: 0 },
+    visible: { x: 0,   y: 0,   opacity: 1,
+      transition: { duration: 1.5, ease: [0.16, 1, 0.3, 1], delay: 0.2 } },
+  };
+  const slideInBR = {
+    hidden:  { x: 36,  y: 36,  opacity: 0 },
+    visible: { x: 0,   y: 0,   opacity: 1,
+      transition: { duration: 1.5, ease: [0.16, 1, 0.3, 1], delay: 0.4 } },
+  };
+  const slideInBL = {
+    hidden:  { x: -30, y: 30,  opacity: 0 },
+    visible: { x: 0,   y: 0,   opacity: 1,
+      transition: { duration: 1.4, ease: [0.16, 1, 0.3, 1], delay: 0.5 } },
+  };
+  const archDraw = {
+    hidden:  { pathLength: 0, opacity: 0 },
+    visible: { pathLength: 1, opacity: 1,
+      transition: { duration: 2.2, ease: "easeInOut", delay: 0.6 } },
+  };
+
+  /* ══════════════════════════════════════
+     RENDER
+  ══════════════════════════════════════ */
   return (
     <div
-      className="min-h-screen flex flex-col justify-between overflow-x-hidden select-none relative font-sans"
-      style={{ backgroundColor: ivory, color: ink }}
+      className="min-h-screen flex flex-col items-center overflow-x-hidden select-none"
+      style={{ backgroundColor: ivory }}
     >
-      {/* Background music */}
-      {musicEnabled && musicUrl && (
-        <audio ref={audioRef} src={musicUrl} loop />
-      )}
+      {/* Google Fonts */}
+      <style dangerouslySetInnerHTML={{ __html: `
+        @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Great+Vibes&family=Montserrat:wght@300;400;500;600&display=swap');
+        .ff-serif  { font-family: "Cormorant Garamond", "Playfair Display", serif; }
+        .ff-script { font-family: "Great Vibes", cursive; }
+        .ff-sans   { font-family: "Montserrat", sans-serif; }
+      ` }} />
 
-      {/* Floating sound toggle */}
+      {musicEnabled && musicUrl && <audio ref={audioRef} src={musicUrl} loop />}
+
+      {/* Mute toggle */}
       {isOpen && musicEnabled && musicUrl && (
-        <div className="fixed top-6 right-6 z-45">
+        <div className="fixed top-5 right-5 z-50">
           <button
             onClick={toggleAudio}
-            className="h-10 w-10 rounded-full border flex items-center justify-center shadow-lg transition-all duration-300 transform hover:scale-105 active:scale-95 cursor-pointer"
-            style={{ 
-              backgroundColor: isMuted ? ivory : sage, 
-              borderColor: gold,
-              color: isMuted ? ink : ivory
-            }}
-            aria-label={isMuted ? "Unmute music" : "Mute music"}
+            className="h-10 w-10 rounded-full border flex items-center justify-center shadow-md transition-transform hover:scale-105 active:scale-95 cursor-pointer"
+            style={{ backgroundColor: ivory, borderColor: gold, color: olive }}
+            aria-label={isMuted ? "Unmute" : "Mute"}
           >
-            {isMuted ? (
-              <svg className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M17.25 9.75L19.5 12m0 0l2.25 2.25M19.5 12l2.25-2.25M19.5 12l-2.25 2.25m-10.5-6L4.5 9H1.5v6h3l4.5 3.75V5.25z" />
-              </svg>
-            ) : (
-              <svg className="h-4.5 w-4.5 animate-pulse" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19.114 5.636a9 9 0 010 12.728M16.463 8.288a5.25 5.25 0 010 7.424M6.75 8.25l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75z" />
-              </svg>
-            )}
+            {isMuted
+              ? <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17.25 9.75L19.5 12m0 0l2.25 2.25M19.5 12l2.25-2.25M19.5 12l-2.25 2.25m-10.5-6L4.5 9H1.5v6h3l4.5 3.75V5.25z" /></svg>
+              : <svg className="w-4 h-4 animate-pulse" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19.114 5.636a9 9 0 010 12.728M16.463 8.288a5.25 5.25 0 010 7.424M6.75 8.25l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75z" /></svg>
+            }
           </button>
         </div>
       )}
 
+      {/* ══════════════════════════════════════
+          COVER SCREEN
+      ══════════════════════════════════════ */}
       <AnimatePresence>
-        {/* ── Cover Screen ── */}
         {!isOpen && (
           <motion.div
             initial={{ opacity: 1 }}
-            exit={{ opacity: 0, scale: 1.02 }}
-            transition={{ duration: 1.2, ease: [0.43, 0.13, 0.23, 0.96] }}
-            className="fixed inset-0 z-50 flex flex-col items-center justify-center p-6 text-center select-none"
+            exit={{ opacity: 0, scale: 1.01 }}
+            transition={{ duration: 1.1, ease: [0.43, 0.13, 0.23, 0.96] }}
+            className="fixed inset-0 z-50 flex flex-col items-center justify-center text-center px-6"
             style={{ backgroundColor: ivory }}
           >
-            {/* Elegant Double Arch Frame */}
-            <div className="absolute inset-6 sm:inset-10 border border-dashed rounded-t-full pointer-events-none opacity-30" style={{ borderColor: gold }} />
-            <div className="absolute inset-8 sm:inset-12 border rounded-t-full pointer-events-none opacity-20" style={{ borderColor: gold }} />
+            {/* Cover corner flowers */}
+            {/* Static outer div holds the positional offset — keeps it independent of Framer Motion */}
+            <div className="absolute pointer-events-none" style={{ top: -20, left: -20, zIndex: 5 }}>
+              <img
+                src="/Images/Templates/Floral-Arch/top-left-design.png"
+                alt="" aria-hidden="true"
+                style={{ width: 200, height: 200, objectFit: "contain", objectPosition: "left top", opacity: 0.97 }}
+              />
+            </div>
+            <div className="absolute bottom-0 right-0 pointer-events-none">
+              <img
+                src="/Images/Templates/Floral-Arch/floral-arch-corner-flower.jpg"
+                alt="" aria-hidden="true"
+                style={{ width: 200, height: 200, objectFit: "cover", objectPosition: "left top", mixBlendMode: "multiply", opacity: 0.95, transform: "scaleX(-1) scaleY(-1)" }}
+              />
+            </div>
 
-            <div className="max-w-md w-full space-y-12 relative z-10">
-              <div className="space-y-6">
-                <div className="text-3xl animate-bounce" style={{ color: sage }}>🌿</div>
-                <span className="text-[10px] font-bold uppercase tracking-[0.3em] font-sans block" style={{ color: goldDeep }}>
-                  The {ceremonyType} Celebration
-                </span>
-                <h1 className="font-serif text-5xl font-extralight leading-snug tracking-wide" style={{ color: ink }}>
-                  {partner1} <br />
-                  <span className="italic font-normal font-serif text-3xl opacity-60" style={{ color: goldDeep }}>&amp;</span> <br />
-                  {partner2}
+            <div className="relative z-10 max-w-xs w-full space-y-10">
+              <div className="space-y-4">
+                <p className="ff-sans uppercase tracking-[0.25em] font-semibold" style={{ fontSize: 10, color: taupe }}>
+                  {tagline}
+                </p>
+                <h1 className="ff-serif font-light leading-tight" style={{ fontSize: "clamp(36px, 10vw, 52px)", color: olive }}>
+                  {name1}<br />
+                  <span className="ff-script block font-normal" style={{ fontSize: "clamp(28px, 8vw, 36px)", color: gold, lineHeight: 1.3 }}>&amp;</span>
+                  {name2}
                 </h1>
               </div>
-
-              <div className="flex flex-col items-center gap-4">
+              <div className="flex flex-col items-center gap-3">
                 <button
                   onClick={handleOpenInvite}
-                  className="h-20 w-20 rounded-full border-2 flex items-center justify-center text-white shadow-xl hover:scale-105 active:scale-95 transition duration-300 cursor-pointer"
-                  style={{ 
-                    borderColor: ivory,
-                    background: `radial-gradient(circle, ${sage}ee, ${sage})`
-                  }}
+                  className="h-16 w-16 rounded-full flex items-center justify-center text-white shadow-xl hover:scale-105 active:scale-95 transition-transform duration-300 cursor-pointer"
+                  style={{ background: `radial-gradient(circle, ${sage}cc, ${sage})`, border: `1px solid ${ivory}` }}
                   aria-label="Open invitation"
                 >
-                  <span className="font-serif text-xl font-medium tracking-widest">{initials}</span>
+                  <span className="ff-serif text-xl font-medium tracking-widest">{initials}</span>
                 </button>
-                <span className="text-[9px] uppercase tracking-widest font-bold text-stone-400 animate-pulse">
+                <span className="ff-sans text-[9px] uppercase tracking-widest font-semibold text-stone-400 animate-pulse">
                   Open Invitation
                 </span>
               </div>
@@ -211,281 +386,232 @@ export default function FloralArch({ content = {}, mode = "live", onRsvpSubmit, 
         )}
       </AnimatePresence>
 
-      {/* ── Main Scroll Content ── */}
-      <div className="flex-1 flex flex-col items-center">
-        {/* Arch Hero Section */}
-        <section className="min-h-screen w-full max-w-xl bg-[#FBF7EF] border-x border-[#FAF5EC] flex flex-col justify-between p-8 relative overflow-hidden">
-          {/* Classical Arch Illustration SVG Overlay */}
-          <div className="absolute inset-6 border border-dashed rounded-t-full pointer-events-none opacity-20" style={{ borderColor: gold }} />
-          
-          <div className="absolute top-12 left-1/2 -translate-x-1/2 w-[85%] max-w-sm pointer-events-none opacity-25">
-            <svg viewBox="0 0 100 150" fill="none" stroke={gold} strokeWidth="0.4" className="w-full">
-              <path d="M10,150 L10,50 A40,40 0 0,1 90,50 L90,150" />
-              <path d="M15,150 L15,50 A35,35 0 0,1 85,50 L85,150" />
-              <path d="M10,50 C25,45 75,45 90,50" />
-              <circle cx="50" cy="12" r="2" fill={gold} />
-              <path d="M50,14 L50,22 M46,18 L54,18" />
+      {/* ══════════════════════════════════════
+          MAIN INVITATION CARD
+      ══════════════════════════════════════ */}
+      <div className="w-full max-w-[700px] flex flex-col">
+
+        {/* ────────────────────────────────────
+            HERO SECTION
+        ──────────────────────────────────── */}
+        <section
+          className="relative w-full overflow-hidden"
+          style={{
+            backgroundColor: ivory,
+            minHeight: "100svh",
+          }}
+        >
+          {/* ── TOP-LEFT Floral Corner ── */}
+          {/* Static outer div holds the corner offset independently of Framer Motion transform */}
+          <div className="absolute pointer-events-none" style={{ top: -20, left: -20, zIndex: 5 }}>
+            <motion.div
+              variants={slideInTL}
+              initial="hidden"
+              animate={isOpen ? "visible" : "hidden"}
+            >
+              <img
+                src="/Images/Templates/Floral-Arch/top-left-design.png"
+                alt="" aria-hidden="true"
+                style={{
+                  width: "clamp(200px, 46vw, 300px)",
+                  height: "clamp(200px, 46vw, 300px)",
+                  objectFit: "contain",
+                  objectPosition: "left top",
+                  opacity: 0.97,
+                }}
+              />
+            </motion.div>
+          </div>
+
+          {/* ── BOTTOM-RIGHT Floral Corner ── */}
+          <motion.div
+            variants={slideInBR}
+            initial="hidden"
+            animate={isOpen ? "visible" : "hidden"}
+            className="absolute bottom-0 right-0 pointer-events-none"
+            style={{ zIndex: 5 }}
+          >
+            <img
+              src="/Images/Templates/Floral-Arch/floral-arch-corner-flower.jpg"
+              alt="" aria-hidden="true"
+              style={{
+                width: "clamp(180px, 42vw, 290px)",
+                height: "clamp(180px, 42vw, 290px)",
+                objectFit: "cover",
+                objectPosition: "left top",
+                mixBlendMode: "multiply",
+                opacity: 0.97,
+                transform: "scaleX(-1) scaleY(-1)",
+              }}
+            />
+          </motion.div>
+
+          {/* ── BOTTOM-LEFT Couple Illustration ── */}
+          <motion.div
+            variants={slideInBL}
+            initial="hidden"
+            animate={isOpen ? "visible" : "hidden"}
+            className="absolute bottom-0 left-0 pointer-events-none hidden sm:block"
+            style={{ zIndex: 6 }}
+          >
+            <img
+              src={couplePhoto || "/Images/Templates/Floral-Arch/couple-illustration.png"}
+              alt="Bride and Groom"
+              style={{
+                width: "clamp(140px, 36vw, 240px)",
+                height: "auto",
+                maxHeight: "55%",
+                objectFit: "contain",
+                objectPosition: "bottom",
+              }}
+            />
+          </motion.div>
+
+          {/* ── GOLD ARCH FRAME SVG — Premium Cathedral Style ── */}
+          <div
+            className="absolute pointer-events-none"
+            style={{ inset: 0, zIndex: 3 }}
+          >
+            <svg
+              viewBox="0 0 320 480"
+              preserveAspectRatio="none"
+              className="w-full h-full"
+              aria-hidden="true"
+            >
+              {/* ── Outer arch: pointed gothic/cathedral apex ── */}
+              <motion.path
+                d="M 24 480 L 24 160 C 24 60 160 16 160 16 C 160 16 296 60 296 160 L 296 480"
+                fill="none"
+                stroke={gold}
+                strokeWidth="1"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                variants={archDraw}
+                initial="hidden"
+                animate={isOpen ? "visible" : "hidden"}
+              />
+              {/* ── Inner dashed echo ── */}
+              <motion.path
+                d="M 34 480 L 34 163 C 34 72 160 30 160 30 C 160 30 286 72 286 163 L 286 480"
+                fill="none"
+                stroke={gold}
+                strokeWidth="0.5"
+                strokeDasharray="5 4"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                variants={archDraw}
+                initial="hidden"
+                animate={isOpen ? "visible" : "hidden"}
+              />
+              {/* ── Apex pointed ornament ── */}
+              <motion.path
+                d="M 160 6 L 165 16 L 160 14 L 155 16 Z"
+                fill={gold} opacity="0.7"
+                initial={{ opacity: 0, y: -4 }}
+                animate={isOpen ? { opacity: 0.7, y: 0 } : { opacity: 0, y: -4 }}
+                transition={{ delay: 2.5, duration: 0.5 }}
+              />
+              {/* ── Small diamonds at arch foot left ── */}
+              <motion.rect
+                x="20" y="474" width="8" height="8" rx="1"
+                fill="none" stroke={gold} strokeWidth="0.8"
+                transform="rotate(45 24 478)"
+                initial={{ opacity: 0 }}
+                animate={isOpen ? { opacity: 0.6 } : { opacity: 0 }}
+                transition={{ delay: 2.6, duration: 0.5 }}
+              />
+              {/* ── Small diamonds at arch foot right ── */}
+              <motion.rect
+                x="292" y="474" width="8" height="8" rx="1"
+                fill="none" stroke={gold} strokeWidth="0.8"
+                transform="rotate(45 296 478)"
+                initial={{ opacity: 0 }}
+                animate={isOpen ? { opacity: 0.6 } : { opacity: 0 }}
+                transition={{ delay: 2.6, duration: 0.5 }}
+              />
+              {/* ── Horizontal base rule ── */}
+              <motion.line
+                x1="24" y1="478" x2="296" y2="478"
+                stroke={gold} strokeWidth="0.6"
+                variants={archDraw}
+                initial="hidden"
+                animate={isOpen ? "visible" : "hidden"}
+              />
+              {/* ── Decorative pillar marks left ── */}
+              <motion.line x1="24" y1="440" x2="40" y2="440" stroke={gold} strokeWidth="0.5"
+                initial={{ opacity: 0 }} animate={isOpen ? { opacity: 0.5 } : { opacity: 0 }} transition={{ delay: 2.7, duration: 0.4 }} />
+              <motion.line x1="24" y1="400" x2="36" y2="400" stroke={gold} strokeWidth="0.4"
+                initial={{ opacity: 0 }} animate={isOpen ? { opacity: 0.4 } : { opacity: 0 }} transition={{ delay: 2.8, duration: 0.4 }} />
+              {/* ── Decorative pillar marks right ── */}
+              <motion.line x1="296" y1="440" x2="280" y2="440" stroke={gold} strokeWidth="0.5"
+                initial={{ opacity: 0 }} animate={isOpen ? { opacity: 0.5 } : { opacity: 0 }} transition={{ delay: 2.7, duration: 0.4 }} />
+              <motion.line x1="296" y1="400" x2="284" y2="400" stroke={gold} strokeWidth="0.4"
+                initial={{ opacity: 0 }} animate={isOpen ? { opacity: 0.4 } : { opacity: 0 }} transition={{ delay: 2.8, duration: 0.4 }} />
             </svg>
           </div>
 
-          <div className="text-center my-auto space-y-12 pt-28 relative z-10">
-            <span className="text-[10px] font-bold uppercase tracking-[0.3em] font-sans block" style={{ color: goldDeep }}>
-              SAVE THE DATE
-            </span>
+          {/* ── HERO TEXT CONTENT: names only ── */}
+          <div
+            className="relative flex flex-col items-center justify-center text-center"
+            style={{
+              zIndex: 10,
+              paddingTop: "clamp(90px, 16vh, 140px)",
+              paddingBottom: "clamp(60px, 10vh, 100px)",
+              paddingLeft:   "clamp(28px, 8vw, 80px)",
+              paddingRight:  "clamp(28px, 8vw, 80px)",
+            }}
+          >
+            {/* 1. Gold heart icon */}
+            <motion.div variants={fadeUp(0)} initial="hidden" animate={isOpen ? "visible" : "hidden"} className="mb-3">
+              <GoldHeart size={11} gold={gold} />
+            </motion.div>
 
-            <div className="space-y-4">
-              <h1 className="font-serif text-6xl font-light tracking-wide" style={{ color: ink }}>
-                {partner1} <br />
-                <span className="italic font-normal font-serif text-4xl block my-2" style={{ color: sage }}>&amp;</span>
-                {partner2}
-              </h1>
-              <p className="text-[11px] text-stone-500 uppercase tracking-widest font-medium max-w-xs mx-auto whitespace-pre-line">
-                {parentsGreeting}
-              </p>
-            </div>
+            {/* 2. Tagline */}
+            <motion.p
+              variants={fadeUp(1)} initial="hidden" animate={isOpen ? "visible" : "hidden"}
+              className="ff-sans uppercase font-semibold tracking-[0.18em] mb-5"
+              style={{ fontSize: 10, color: taupe }}
+            >
+              {tagline}
+            </motion.p>
 
-            <div className="max-w-[240px] mx-auto rounded-t-full overflow-hidden shadow-2xl border-4 border-white transition hover:scale-[1.01] duration-500 bg-[#F3E9D4]/50 flex items-center justify-center h-72 relative">
-              {couplePhoto ? (
-                <img src={couplePhoto} alt="Couple" className="w-full h-full object-cover" />
-              ) : (
-                <div className="flex flex-col items-center justify-center text-center p-6 text-[#9C7A3C]/50 space-y-2 select-none">
-                  <span className="text-3xl">📷</span>
-                  <span className="text-[10px] font-bold uppercase tracking-widest font-sans">Couple Photo Frame</span>
-                </div>
-              )}
-            </div>
+            {/* 3. Name 1 */}
+            <motion.h1
+              variants={fadeUp(2)} initial="hidden" animate={isOpen ? "visible" : "hidden"}
+              className="ff-serif font-light leading-none"
+              style={{ fontSize: "clamp(52px, 13vw, 82px)", color: olive, letterSpacing: "0.02em" }}
+            >
+              {name1}
+            </motion.h1>
 
-            <div className="max-w-xs mx-auto pt-6">
-              <div
-                className="p-6 border border-solid text-center shadow-xs"
-                style={{ 
-                  backgroundColor: parchment, 
-                  borderColor: gold,
-                  boxShadow: `0 4px 20px rgba(156, 122, 60, 0.08)`
-                }}
-              >
-                <span className="text-[9px] font-bold uppercase tracking-[0.2em] block" style={{ color: goldDeep }}>The Ceremony</span>
-                <p className="font-serif text-3xl font-light my-2.5" style={{ color: ink }}>{displayDate}</p>
-                <span className="text-[9px] uppercase tracking-wider text-stone-500 font-sans block">{displayTime}</span>
-              </div>
-            </div>
-          </div>
+            {/* 4. Script "&" with flanking rules */}
+            <motion.div variants={fadeUp(3)} initial="hidden" animate={isOpen ? "visible" : "hidden"} className="w-full my-1">
+              <AmpersandDivider gold={gold} />
+            </motion.div>
 
-          <div className="text-center text-[9px] text-stone-400 uppercase tracking-[0.25em] pt-6 animate-pulse">
-            Scroll to view details
+            {/* 5. Name 2 */}
+            <motion.h1
+              variants={fadeUp(4)} initial="hidden" animate={isOpen ? "visible" : "hidden"}
+              className="ff-serif font-light leading-none"
+              style={{ fontSize: "clamp(52px, 13vw, 82px)", color: olive, letterSpacing: "0.02em" }}
+            >
+              {name2}
+            </motion.h1>
+
+            {/* Scroll cue */}
+            <motion.p
+              variants={fadeUp(5)} initial="hidden" animate={isOpen ? "visible" : "hidden"}
+              className="ff-sans text-[8px] uppercase tracking-[0.28em] animate-pulse mt-10"
+              style={{ color: gold }}
+            >
+              scroll to explore
+            </motion.p>
+
           </div>
         </section>
 
-        {/* Welcome Note Section (Optional, not on first page) */}
-        {content.welcome_note && (
-          <RevealSection className="w-full max-w-xl bg-[#FBF7EF] border-x border-t border-stone-200/30 px-12 py-16 text-center space-y-4">
-            <span className="text-[10px] font-bold uppercase tracking-[0.25em] block" style={{ color: goldDeep }}>Welcome Note</span>
-            <p className="font-serif text-2xl font-light italic leading-relaxed max-w-sm mx-auto" style={{ color: ink }}>
-              "{content.welcome_note}"
-            </p>
-          </RevealSection>
-        )}
+      </div>{/* /max-w-[700px] */}
 
-        {/* Countdown */}
-        <RevealSection className="w-full max-w-xl bg-[#FBF7EF] border-x border-t border-stone-200/30 px-12 py-20 text-center">
-          <h2 className="font-serif text-3xl font-light mb-8 tracking-wide" style={{ color: ink }}>
-            The Botanical <span className="italic font-normal">Countdown</span>
-          </h2>
-          <div className="grid grid-cols-4 gap-3.5 max-w-xs mx-auto">
-            {[
-              { val: countdown.days, lbl: "Days" },
-              { val: countdown.hours, lbl: "Hours" },
-              { val: countdown.mins, lbl: "Mins" },
-              { val: countdown.secs, lbl: "Secs" },
-            ].map(({ val, lbl }) => (
-              <div 
-                key={lbl} 
-                className="border p-3.5 flex flex-col items-center shadow-sm"
-                style={{ 
-                  backgroundColor: parchment, 
-                  borderColor: `${gold}40`,
-                  boxShadow: `0 4px 16px rgba(156, 122, 60, 0.06)`
-                }}
-              >
-                <span className="font-serif text-3xl font-light" style={{ color: goldDeep }}>{val}</span>
-                <span className="text-[9px] uppercase tracking-widest font-semibold mt-1" style={{ color: sage }}>{lbl}</span>
-              </div>
-            ))}
-          </div>
-        </RevealSection>
-
-        {/* Our Story (Optional) */}
-        {content.our_story && (
-          <RevealSection className="w-full max-w-xl bg-[#FBF7EF] border-x border-t border-stone-200/30 px-12 py-20 text-center space-y-6">
-            <span className="text-[10px] font-bold uppercase tracking-[0.25em]" style={{ color: goldDeep }}>Our Love Story</span>
-            <h2 className="font-serif text-3xl font-light tracking-wide" style={{ color: ink }}>
-              How We <span className="italic font-normal">Began</span>
-            </h2>
-            <p className="text-sm text-stone-500 italic max-w-sm mx-auto leading-relaxed whitespace-pre-line">
-              {content.our_story}
-            </p>
-          </RevealSection>
-        )}
-
-        {/* Photo Album / Gallery */}
-        {content.photo_album_enabled && content.photo_album && content.photo_album.filter(Boolean).length > 0 && (
-          <RevealSection className="w-full max-w-xl bg-[#FBF7EF] border-x border-t border-stone-200/30 px-6 py-20 text-center space-y-8">
-            <span className="text-[10px] font-bold uppercase tracking-[0.25em]" style={{ color: goldDeep }}>Memories</span>
-            <h2 className="font-serif text-3xl font-light tracking-wide" style={{ color: ink }}>
-              Our <span className="italic font-normal">Photo Album</span>
-            </h2>
-            <div className="grid grid-cols-2 gap-3.5 max-w-md mx-auto">
-              {content.photo_album.filter(Boolean).map((imgUrl, idx) => (
-                <div 
-                  key={idx} 
-                  className="aspect-square rounded-xl overflow-hidden border-2 border-white shadow-md hover:scale-[1.02] transition duration-300 relative group cursor-pointer"
-                  style={{ borderColor: gold }}
-                >
-                  <img src={imgUrl} alt={`Album Memory ${idx + 1}`} className="w-full h-full object-cover" />
-                  <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition duration-350" />
-                </div>
-              ))}
-            </div>
-          </RevealSection>
-        )}
-
-        {/* Event Schedule */}
-        <RevealSection className="w-full max-w-xl bg-[#FBF7EF] border-x border-t border-stone-200/30 px-8 py-20 space-y-12">
-          <h2 className="font-serif text-3xl font-light text-center tracking-wide" style={{ color: ink }}>
-            Ceremony &amp; <span className="italic font-normal">Celebrations</span>
-          </h2>
-          <div className="space-y-6">
-            {[
-              { title: `Main ${ceremonyType} Ceremony`, time: `${displayTime}${content.end_date_time ? ` - ${content.end_date_time}` : ""}`, dress: "Ethnic traditional attire" },
-              { title: "Gala Feast", time: "12:30 PM onwards", dress: "Ethnic / Formal" },
-            ].map((evt) => (
-              <div 
-                key={evt.title} 
-                className="border p-8 shadow-xs relative overflow-hidden"
-                style={{ 
-                  backgroundColor: parchment, 
-                  borderColor: gold,
-                  boxShadow: `0 6px 24px rgba(156, 122, 60, 0.1)`
-                }}
-              >
-                <div className="absolute top-0 left-0 w-1.5 h-full" style={{ backgroundColor: sage }} />
-                <h3 className="font-serif text-xl font-medium" style={{ color: ink }}>{evt.title}</h3>
-                <div className="h-px bg-stone-200/60 my-4" />
-                <div className="space-y-2.5 text-xs text-stone-600">
-                  <p>⏰ <strong className="text-stone-850 font-medium ml-1">Time:</strong> {evt.time}</p>
-                  <p>📍 <strong className="text-stone-850 font-medium ml-1">Venue:</strong> {venue}</p>
-                  <p>👔 <strong className="text-stone-850 font-medium ml-1">Dress Code:</strong> {evt.dress}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </RevealSection>
-
-        {/* Location Map */}
-        <RevealSection className="w-full max-w-xl bg-[#FBF7EF] border-x border-t border-stone-200/30 px-12 py-20 space-y-8">
-          <h2 className="font-serif text-3xl font-light text-center tracking-wide" style={{ color: ink }}>
-            Find <span className="italic font-normal">The Arch</span>
-          </h2>
-          <div 
-            className="h-64 rounded-sm overflow-hidden border relative"
-            style={{ borderColor: gold }}
-          >
-            <iframe
-              src={`https://maps.google.com/maps?q=${encodeURIComponent(`${venue}, ${venueAddress}`)}&t=&z=14&ie=UTF8&iwloc=&output=embed`}
-              width="100%" height="100%"
-              style={{ border: 0 }}
-              allowFullScreen=""
-              loading="lazy"
-              referrerPolicy="no-referrer-when-downgrade"
-            />
-          </div>
-          <div className="text-center space-y-6">
-            <p className="text-xs text-stone-500 max-w-xs mx-auto leading-relaxed">{venueAddress}</p>
-            <a
-              href={content.google_map_link || `https://maps.google.com/?q=${encodeURIComponent(`${venue}, ${venueAddress}`)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 text-white font-bold py-3.5 px-8 rounded-none text-xs uppercase tracking-widest transition-all duration-300 cursor-pointer shadow-md hover:shadow-lg"
-              style={{ backgroundColor: sage }}
-            >
-              Get Directions
-            </a>
-          </div>
-        </RevealSection>
-
-        {/* RSVP Form */}
-        {content.rsvp_enabled && (
-          <RevealSection className="w-full max-w-xl bg-[#FBF7EF] border-x border-t border-stone-200/30 px-12 py-20 space-y-8 pb-20">
-            <h2 className="font-serif text-3xl font-light text-center tracking-wide" style={{ color: ink }}>
-              Confirm <span className="italic font-normal">Attendance</span>
-            </h2>
-
-            {rsvpSubmitted ? (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.98 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="text-center p-8 border max-w-sm mx-auto space-y-4"
-                style={{ backgroundColor: parchment, borderColor: gold }}
-              >
-                <div className="h-10 w-10 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-full flex items-center justify-center mx-auto text-lg">✓</div>
-                <h3 className="font-serif text-xl font-medium" style={{ color: ink }}>You are Registered</h3>
-                <p className="text-xs text-stone-500 leading-relaxed">Your response has been sent to the wedding organizer.</p>
-              </motion.div>
-            ) : (
-              <form onSubmit={handleRsvpSubmit} className="space-y-4 max-w-sm mx-auto font-sans">
-                {rsvpError && (
-                  <div className="bg-red-50 border border-red-200 text-red-700 text-xs font-medium px-4 py-3 rounded-none">{rsvpError}</div>
-                )}
-                <input
-                  type="text" required placeholder="Guest Name"
-                  value={rsvpData.guest_name}
-                  onChange={(e) => setRsvpData({ ...rsvpData, guest_name: e.target.value })}
-                  className="w-full bg-white border rounded-none px-4 py-3.5 text-sm placeholder-stone-400 focus:outline-none focus:border-stone-500 focus:ring-1 focus:ring-stone-500 transition"
-                  style={{ borderColor: `${gold}60` }}
-                />
-                <select 
-                  value={rsvpData.status} 
-                  onChange={(e) => setRsvpData({ ...rsvpData, status: e.target.value })} 
-                  className="w-full bg-white border rounded-none px-4 py-3.5 text-sm focus:outline-none transition" 
-                  style={{ borderColor: `${gold}60` }}
-                >
-                  <option value="attending">Will Attend</option>
-                  <option value="declined">Will Decline</option>
-                </select>
-                <button
-                  type="submit" disabled={rsvpLoading}
-                  className="w-full text-white font-bold py-4 rounded-none text-xs uppercase tracking-widest transition-all cursor-pointer disabled:opacity-50 shadow-md hover:shadow-lg"
-                  style={{ backgroundColor: sage }}
-                >
-                  {rsvpLoading ? "Confirming…" : "Send Attendance"}
-                </button>
-              </form>
-            )}
-          </RevealSection>
-        )}
-
-        {/* Attributions Section (Optional) */}
-        {(content.attribution_heading || content.attribution_names) && (
-          <RevealSection className="w-full max-w-xl bg-[#FBF7EF] border-x border-t border-stone-200/30 px-12 py-16 text-center space-y-2 pb-28">
-            {content.attribution_heading && (
-              <span className="text-[10px] font-bold uppercase tracking-[0.25em] block" style={{ color: goldDeep }}>
-                {content.attribution_heading}
-              </span>
-            )}
-            {content.attribution_names && (
-              <p className="font-serif text-2xl font-light italic" style={{ color: ink }}>
-                {content.attribution_names}
-              </p>
-            )}
-          </RevealSection>
-        )}
-      </div>
-
-      {!hideBranding && (
-        <footer className="text-center text-[10px] uppercase tracking-widest py-8 border-t max-w-xl mx-auto w-full" style={{ borderColor: `${gold}20`, color: goldDeep }}>
-          Made with Cardessa Floral Arch Theme
-        </footer>
-      )}
     </div>
   );
 }

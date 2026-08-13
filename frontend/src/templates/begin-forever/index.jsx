@@ -3,84 +3,93 @@
 import React, { useEffect, useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
-// Scratch reveal component tailored for Begin Forever
-function ScratchReveal({ date, accentColor, onReveal }) {
-  const canvasRef = useRef(null);
-  const containerRef = useRef(null);
-  const [isRevealed, setIsRevealed] = useState(false);
+// Custom dynamic calendar component for Begin Forever
+function WeddingCalendar({ date, accentColor }) {
+  const dateObj = date ? new Date(date) : new Date("2026-08-12");
+  const year = dateObj.getFullYear();
+  const month = dateObj.getMonth();
+  const day = dateObj.getDate();
 
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    const rect = containerRef.current.getBoundingClientRect();
-    canvas.width = rect.width;
-    canvas.height = rect.height;
+  const monthNames = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ];
+  const monthName = monthNames[month];
 
-    // Premium gold texture pattern
-    const grad = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-    grad.addColorStop(0, "#AA7C11");
-    grad.addColorStop(0.3, "#F3E5AB");
-    grad.addColorStop(0.7, "#D4AF37");
-    grad.addColorStop(1, "#8A660F");
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  // Calculate first day of the month and total days
+  const firstDayIndex = new Date(year, month, 1).getDay(); // 0 is Sunday
+  // Adjust grid to start on Monday (0=Mon, 1=Tue, ..., 6=Sun)
+  const startDay = firstDayIndex === 0 ? 6 : firstDayIndex - 1;
+  const totalDays = new Date(year, month + 1, 0).getDate();
 
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.2)";
-    ctx.lineWidth = 1;
-    for (let i = 0; i < canvas.width; i += 15) {
-      ctx.beginPath();
-      ctx.moveTo(i, 0);
-      ctx.lineTo(i + 20, canvas.height);
-      ctx.stroke();
-    }
+  const daysGrid = [];
+  for (let i = 0; i < startDay; i++) {
+    daysGrid.push(null);
+  }
+  for (let i = 1; i <= totalDays; i++) {
+    daysGrid.push(i);
+  }
 
-    ctx.fillStyle = "#42320b";
-    ctx.font = "italic bold 12px Georgia, serif";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText("Scratch for Date", canvas.width / 2, canvas.height / 2);
-  }, [date]);
-
-  const scratch = (clientX, clientY) => {
-    const canvas = canvasRef.current;
-    if (!canvas || isRevealed) return;
-    const rect = canvas.getBoundingClientRect();
-    const ctx = canvas.getContext("2d");
-    ctx.globalCompositeOperation = "destination-out";
-    ctx.beginPath();
-    ctx.arc(clientX - rect.left, clientY - rect.top, 24, 0, Math.PI * 2);
-    ctx.fill();
-
-    const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-    let transparent = 0;
-    for (let i = 3; i < pixels.length; i += 4) {
-      if (pixels[i] === 0) transparent++;
-    }
-    if ((transparent / (canvas.width * canvas.height)) * 100 > 40) {
-      setIsRevealed(true);
-      if (onReveal) onReveal();
-    }
-  };
+  const weekDays = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
 
   return (
-    <div
-      ref={containerRef}
-      className="relative w-full h-32 rounded-2xl overflow-hidden shadow-md flex items-center justify-center bg-zinc-900 border border-amber-500/20"
-    >
-      <div className="absolute inset-0 flex flex-col items-center justify-center text-center bg-black/90 p-4">
-        <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-amber-500 mb-1">Wedding Date</span>
-        <p className="font-serif text-2xl font-light text-amber-100 tracking-wide">{date}</p>
-        <span className="text-[8px] uppercase tracking-widest text-zinc-500 mt-1">Begin Forever</span>
+    <div className="w-full text-zinc-800 font-sans mt-4 max-w-[280px] mx-auto bg-white/60 backdrop-blur-xs p-5 rounded-[2rem] border border-zinc-200/50 shadow-xs">
+      <h4 className="font-serif-luxury text-xl text-[#7E8268] text-center italic mb-4">{monthName}</h4>
+      <div className="grid grid-cols-7 gap-y-2 text-center text-xs">
+        {weekDays.map((d) => (
+          <span key={d} className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider mb-2">{d}</span>
+        ))}
+        {daysGrid.map((d, idx) => {
+          if (d === null) return <span key={`empty-${idx}`} />;
+          const isEventDay = d === day;
+          return (
+            <div key={`day-${d}`} className="relative flex items-center justify-center h-8 w-8 mx-auto">
+              {isEventDay && (
+                <span className="absolute inset-0 flex items-center justify-center text-rose-500 scale-[1.5]">
+                  <svg className="w-9 h-9 fill-none stroke-rose-400 stroke-[1.5]" viewBox="0 0 24 24">
+                    <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+                  </svg>
+                </span>
+              )}
+              <span className={`relative text-xs ${isEventDay ? "font-bold text-rose-600" : "text-zinc-700"}`}>
+                {d}
+              </span>
+            </div>
+          );
+        })}
       </div>
-      <motion.canvas
-        ref={canvasRef}
-        onMouseMove={(e) => e.buttons === 1 && scratch(e.clientX, e.clientY)}
-        onTouchMove={(e) => scratch(e.touches[0].clientX, e.touches[0].clientY)}
-        animate={isRevealed ? { opacity: 0, pointerEvents: "none" } : {}}
-        transition={{ duration: 0.8 }}
-        className="absolute inset-0 cursor-crosshair touch-none"
-      />
+    </div>
+  );
+}
+
+// Ornate vintage mirror frame SVG background component
+function OrnateFrame({ children, title }) {
+  return (
+    <div className="relative px-8 py-12 my-8 mx-auto w-full max-w-[280px] text-zinc-800 text-center">
+      <div className="absolute inset-0 pointer-events-none">
+        <svg className="w-full h-full text-[#8D8675]/60" viewBox="0 0 200 240" preserveAspectRatio="none">
+          {/* Main frame border */}
+          <rect x="8" y="8" width="184" height="224" rx="24" fill="none" stroke="currentColor" strokeWidth="1.5" />
+          <rect x="12" y="12" width="176" height="216" rx="20" fill="rgba(255, 255, 255, 0.75)" stroke="currentColor" strokeWidth="0.5" />
+          
+          {/* Ornate corner curves */}
+          <path d="M 8 28 Q 28 28 28 8" fill="none" stroke="currentColor" strokeWidth="1.5" />
+          <path d="M 192 28 Q 172 28 172 8" fill="none" stroke="currentColor" strokeWidth="1.5" />
+          <path d="M 8 212 Q 28 212 28 232" fill="none" stroke="currentColor" strokeWidth="1.5" />
+          <path d="M 192 212 Q 172 212 172 232" fill="none" stroke="currentColor" strokeWidth="1.5" />
+
+          {/* Decorative loops on the sides */}
+          <circle cx="100" cy="8" r="6" fill="#F4F2EB" stroke="currentColor" strokeWidth="1.2" />
+          <circle cx="100" cy="232" r="6" fill="#F4F2EB" stroke="currentColor" strokeWidth="1.2" />
+        </svg>
+      </div>
+      
+      {title && (
+        <h3 className="font-script text-3xl text-[#7E8268] mb-4">{title}</h3>
+      )}
+      <div className="relative z-10">
+        {children}
+      </div>
     </div>
   );
 }
@@ -89,20 +98,20 @@ export default function BeginForever({ content = {}, mode = "live", onRsvpSubmit
   const isLive = mode === "live";
   const isPreOpen = mode === "preview" || mode === "editor";
 
-  // Resolve content fields with sensible fallbacks
+  // Content field properties
   const groomName = content.groom_name || "Farhan";
   const brideName = content.bride_name || "Zoya";
   const venue = content.venue_name || "Grand Regency Banquets";
   const venueAddress = content.venue_address || "MG Road, Bangalore, KA";
-  const accentColor = content.accent_color || "#D4AF37"; // Royal Gold
-  const bgColor = content.bg_color || "#121212"; // Midnight Obsidian
+  const accentColor = content.accent_color || "#7E8268"; // Olive Green accent
+  const bgColor = content.bg_color || "#F4F2EB"; // Light Cream base
   const musicUrl = content.music_url || null;
   const musicEnabled = content.music_enabled !== false;
 
   const rawDate = content.event_date || null;
   const displayDate = rawDate
     ? new Date(rawDate).toLocaleDateString("en-US", { day: "numeric", month: "long", year: "numeric" })
-    : "January 24, 2027";
+    : "August 12, 2026";
   const displayTime = content.event_time ? `${content.event_time}` : "07:00 PM";
   const displayOrder = content.name_display_order || "bride_first";
   const partner1 = displayOrder === "bride_first" ? brideName : groomName;
@@ -121,16 +130,16 @@ export default function BeginForever({ content = {}, mode = "live", onRsvpSubmit
     parentsGreeting = `Together with their parents, ${groomParents}`;
   }
 
-  // Cover / audio state
+  // Cover and music toggle states
   const [isOpen, setIsOpen] = useState(isPreOpen);
   const [isMuted, setIsMuted] = useState(true);
   const audioRef = useRef(null);
 
-  // Countdown
+  // Countdown timer calculation
   const [countdown, setCountdown] = useState({ days: 0, hours: 0, mins: 0, secs: 0 });
   useEffect(() => {
     if (!rawDate) return;
-    const target = new Date(`${rawDate}T19:00:00`).getTime();
+    const target = new Date(`${rawDate}T${content.event_time || "19:00"}`).getTime();
     const tick = () => {
       const diff = target - Date.now();
       if (diff < 0) return;
@@ -144,12 +153,12 @@ export default function BeginForever({ content = {}, mode = "live", onRsvpSubmit
     tick();
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
-  }, [rawDate]);
+  }, [rawDate, content.event_time]);
 
-  // RSVP Form state
+  // RSVP Form submission states
   const [rsvpData, setRsvpData] = useState({
-    guest_name: "", email: "", phone: "",
-    status: "attending", guest_count: 1, message: "",
+    guest_name: "",
+    status: "attending",
   });
   const [rsvpSubmitted, setRsvpSubmitted] = useState(false);
   const [rsvpLoading, setRsvpLoading] = useState(false);
@@ -165,8 +174,13 @@ export default function BeginForever({ content = {}, mode = "live", onRsvpSubmit
 
   const toggleAudio = () => {
     if (!audioRef.current) return;
-    if (isMuted) { audioRef.current.play().catch(() => {}); setIsMuted(false); }
-    else { audioRef.current.pause(); setIsMuted(true); }
+    if (isMuted) {
+      audioRef.current.play().catch(() => {});
+      setIsMuted(false);
+    } else {
+      audioRef.current.pause();
+      setIsMuted(true);
+    }
   };
 
   const handleRsvpSubmit = async (e) => {
@@ -189,10 +203,26 @@ export default function BeginForever({ content = {}, mode = "live", onRsvpSubmit
 
   return (
     <div
-      className="min-h-screen text-zinc-100 flex flex-col justify-between overflow-x-hidden font-sans select-none relative"
+      className="min-h-screen text-zinc-800 flex flex-col justify-between overflow-x-hidden font-sans select-none relative"
       style={{ backgroundColor: bgColor }}
     >
-      {/* Background music */}
+      {/* Self-contained styling to load Google Fonts dynamically */}
+      <style dangerouslySetInnerHTML={{__html: `
+        @import url('https://fonts.googleapis.com/css2?family=Alex+Brush&family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Montserrat:wght@300;400;600&display=swap');
+        
+        .font-script {
+          font-family: 'Alex Brush', cursive, Georgia, serif;
+        }
+        .font-serif-luxury {
+          font-family: 'Playfair Display', serif;
+        }
+        .bg-linen-pattern {
+          background-color: ${bgColor};
+          background-image: radial-gradient(circle at 50% 50%, #FAF9F6 0%, ${bgColor} 100%);
+        }
+      `}} />
+
+      {/* Audio support */}
       {musicEnabled && musicUrl && (
         <audio ref={audioRef} src={musicUrl} loop />
       )}
@@ -202,7 +232,7 @@ export default function BeginForever({ content = {}, mode = "live", onRsvpSubmit
         <div className="fixed top-6 right-6 z-45">
           <button
             onClick={toggleAudio}
-            className="h-9 w-9 rounded-full bg-black/80 border border-amber-500/30 flex items-center justify-center text-amber-400 shadow-sm cursor-pointer"
+            className="h-9 w-9 rounded-full bg-white/80 border border-[#8D8675]/30 flex items-center justify-center text-[#7E8268] shadow-xs cursor-pointer hover:bg-white transition"
             aria-label={isMuted ? "Unmute music" : "Mute music"}
           >
             {isMuted ? (
@@ -219,46 +249,57 @@ export default function BeginForever({ content = {}, mode = "live", onRsvpSubmit
       )}
 
       <AnimatePresence>
-        {/* ── Wax Seal Cover Screen ── */}
+        {/* ── Monogram Envelope Cover Screen ── */}
         {!isOpen && (
           <motion.div
             initial={{ opacity: 1 }}
             exit={{ y: "-100%" }}
-            transition={{ duration: 1.1, ease: [0.85, 0, 0.15, 1] }}
-            className="fixed inset-0 z-50 flex flex-col items-center justify-center p-6 text-center select-none"
-            style={{ backgroundColor: bgColor }}
+            transition={{ duration: 1.2, ease: [0.85, 0, 0.15, 1] }}
+            className="fixed inset-0 z-50 flex flex-col items-center justify-center p-6 text-center select-none bg-linen-pattern"
           >
-            {/* Elegant luxury frame */}
-            <div className="absolute inset-5 rounded-3xl pointer-events-none" style={{ border: `2px solid ${accentColor}2b` }} />
-            <div className="absolute inset-6 rounded-3xl pointer-events-none" style={{ border: `1px solid ${accentColor}15` }} />
+            {/* Elegant double-line botanical border */}
+            <div className="absolute inset-5 rounded-[2.5rem] pointer-events-none" style={{ border: `1.5px solid ${accentColor}30` }} />
+            <div className="absolute inset-7 rounded-[2.25rem] pointer-events-none" style={{ border: `0.5px solid ${accentColor}15` }} />
 
             <div className="max-w-md w-full space-y-12 relative z-10">
               <div className="space-y-4">
-                <div className="text-4xl text-amber-500 font-serif font-light mb-2">✦</div>
-                <span className="text-[10px] font-bold uppercase tracking-[0.35em]" style={{ color: accentColor }}>
-                  The Royal {ceremonyType} Union
+                <span className="text-[9px] font-bold uppercase tracking-[0.4em] text-zinc-400" style={{ color: accentColor }}>
+                  INVITATION TO THE WEDDING
                 </span>
-                <h1 className="font-serif text-5xl font-light text-zinc-100 leading-snug tracking-wide">
+                
+                {/* Heart Monogram frame */}
+                <div className="relative mx-auto w-48 h-48 flex items-center justify-center my-6">
+                  <svg className="absolute inset-0 w-full h-full text-[#8D8675]/40" viewBox="0 0 100 100">
+                    <path d="M 50 20 C 35 0, 5 5, 5 40 C 5 70, 50 95, 50 95 C 50 95, 95 70, 95 40 C 95 5, 65 0, 50 20 Z" fill="none" stroke="currentColor" strokeWidth="1" strokeDasharray="3,3" />
+                    <path d="M 50 24 C 38 4, 10 9, 10 42 C 10 68, 50 90, 50 90 C 50 90, 90 68, 90 42 C 90 9, 62 4, 50 24 Z" fill="none" stroke="currentColor" strokeWidth="0.5" />
+                  </svg>
+                  <div className="text-center relative z-10 px-6 space-y-1">
+                    <span className="font-script text-4xl text-zinc-800 leading-tight block">
+                      {initials}
+                    </span>
+                    <span className="text-[8px] text-zinc-400 font-bold uppercase tracking-widest block">
+                      {displayDate}
+                    </span>
+                  </div>
+                </div>
+
+                <h1 className="font-serif-luxury text-4xl font-light text-zinc-850 leading-relaxed tracking-wide mt-2">
                   {partner1} <br />
-                  <span className="italic font-normal font-serif" style={{ color: accentColor }}>&amp;</span> <br />
+                  <span className="font-script text-4xl text-[#7E8268]">&amp;</span> <br />
                   {partner2}
                 </h1>
               </div>
 
-              {/* Pulsing Monogram Seal */}
+              {/* Monogram Seal */}
               <div className="flex flex-col items-center gap-4">
                 <button
                   onClick={handleOpenInvite}
-                  className="h-20 w-20 rounded-full border-2 border-amber-500/40 flex items-center justify-center text-white shadow-2xl hover:scale-105 active:scale-95 transition duration-300 cursor-pointer relative"
-                  style={{ background: `radial-gradient(circle, #AA7C11, #42320b)` }}
+                  className="h-16 w-16 rounded-full border border-zinc-200 bg-[#7E8268] hover:bg-[#6b6f58] flex items-center justify-center text-white shadow-md hover:scale-105 active:scale-95 transition duration-300 cursor-pointer relative"
                   aria-label="Open invitation"
                 >
                   <span className="absolute inset-0 rounded-full animate-ping opacity-35 pointer-events-none" style={{ border: `1px solid ${accentColor}` }} />
-                  <span className="font-serif text-xl font-bold tracking-widest text-amber-200">{initials}</span>
+                  <span className="font-serif text-sm font-semibold tracking-wider text-white">OPEN</span>
                 </button>
-                <span className="text-[9px] uppercase tracking-widest font-bold text-amber-500/70 animate-pulse">
-                  Break The Wax Seal
-                </span>
               </div>
             </div>
           </motion.div>
@@ -266,203 +307,206 @@ export default function BeginForever({ content = {}, mode = "live", onRsvpSubmit
       </AnimatePresence>
 
       {/* ── Main Scroll Content ── */}
-      <div className="flex-1 flex flex-col items-center">
-        {/* Obsidian Hero Section */}
-        <section className="min-h-screen w-full max-w-xl bg-zinc-950 border-x border-zinc-900 shadow-2xl flex flex-col justify-between p-12 relative overflow-hidden">
+      <div className="flex-1 flex flex-col items-center bg-linen-pattern">
+        
+        {/* Header Hero Section */}
+        <section className="min-h-screen w-full max-w-md bg-white/20 border-x border-zinc-200/50 shadow-2xl flex flex-col justify-between p-8 relative overflow-hidden">
           
-          {/* Ornate corners */}
-          <div className="absolute top-8 left-8 text-2xl" style={{ color: `${accentColor}40` }}>✦</div>
-          <div className="absolute top-8 right-8 text-2xl" style={{ color: `${accentColor}40` }}>✦</div>
-          <div className="absolute bottom-8 left-8 text-2xl" style={{ color: `${accentColor}40` }}>✦</div>
-          <div className="absolute bottom-8 right-8 text-2xl" style={{ color: `${accentColor}40` }}>✦</div>
-
-          <div className="text-center my-auto space-y-12 pt-12">
-            <span className="text-[10px] font-bold uppercase tracking-[0.25em]" style={{ color: accentColor }}>
-              Begin Forever
+          <div className="text-center my-auto space-y-10 pt-16">
+            <span className="text-[9px] font-bold uppercase tracking-[0.3em] text-[#7E8268] block">
+              WEDDING DAY
             </span>
 
+            {/* Heart Lace Crest */}
+            <div className="relative mx-auto w-52 h-52 flex items-center justify-center my-4">
+              <svg className="absolute inset-0 w-full h-full text-[#8D8675]/30" viewBox="0 0 100 100">
+                <path d="M 50 20 C 35 0, 5 5, 5 40 C 5 70, 50 95, 50 95 C 50 95, 95 70, 95 40 C 95 5, 65 0, 50 20 Z" fill="none" stroke="currentColor" strokeWidth="1" strokeDasharray="3,3" />
+                <path d="M 50 24 C 38 4, 10 9, 10 42 C 10 68, 50 90, 50 90 C 50 90, 90 68, 90 42 C 90 9, 62 4, 50 24 Z" fill="none" stroke="currentColor" strokeWidth="0.5" />
+              </svg>
+              <div className="text-center relative z-10 px-6 space-y-2">
+                <span className="font-script text-4xl text-zinc-800 leading-tight block">
+                  {partner1} <br />
+                  <span className="text-[#7E8268] text-3xl font-light">&amp;</span> <br />
+                  {partner2}
+                </span>
+                <span className="text-[9px] text-[#8D8675] font-bold uppercase tracking-widest block">
+                  {displayDate}
+                </span>
+              </div>
+            </div>
+
             <div className="space-y-4">
-              <h1 className="font-serif text-5xl font-light text-zinc-150 tracking-wide">
-                {partner1} <br />
-                <span className="italic font-normal font-serif" style={{ color: accentColor }}>&amp;</span> <br />
-                {partner2}
-              </h1>
-              <p className="text-[11px] text-amber-500/80 uppercase tracking-widest font-sans max-w-xs mx-auto whitespace-pre-line mb-3">
+              {/* Cursive Russian mockup matching greeting: "Dear Family & Friends!" */}
+              <h2 className="font-script text-4xl text-[#7E8268] font-normal leading-relaxed">
+                Dear family and friends!
+              </h2>
+              
+              <p className="text-[10px] text-zinc-400 uppercase tracking-widest font-sans max-w-[280px] mx-auto whitespace-pre-line leading-relaxed">
                 {parentsGreeting}
               </p>
-              <p className="text-xs text-zinc-400 italic max-w-xs mx-auto leading-relaxed">
-                request the honor of your presence to witness the beginning of our forever.
+              
+              <p className="text-xs text-zinc-500 max-w-[280px] mx-auto leading-relaxed italic">
+                We are happy to share the joy of our wedding day with you. We look forward to seeing you at our celebration!
               </p>
             </div>
 
-            <div className="max-w-xs mx-auto pt-6">
-              <ScratchReveal date={displayDate} accentColor={accentColor} />
+            {/* Custom Dynamic Calendar Block */}
+            <div className="max-w-[290px] mx-auto pt-4">
+              <WeddingCalendar date={rawDate} accentColor={accentColor} />
             </div>
           </div>
 
-          <div className="text-center text-[9px] text-zinc-500 uppercase tracking-widest pt-6">
-            Scroll down to view royal ceremonies
+          <div className="text-center text-[9px] text-[#8D8675] uppercase tracking-widest pt-8">
+            Scroll down to view details
           </div>
         </section>
 
-        {/* Welcome Note Section (Optional, not on first page) */}
+        {/* Welcome Note (Optional) */}
         {content.welcome_note && (
-          <section className="w-full max-w-xl bg-zinc-950 border-x border-t border-zinc-900 px-12 py-16 text-center space-y-4">
-            <span className="text-[10px] font-bold uppercase tracking-[0.25em] block" style={{ color: accentColor }}>Welcome Note</span>
-            <p className="font-serif text-2xl font-light italic text-zinc-150 leading-relaxed max-w-sm mx-auto">
+          <section className="w-full max-w-md bg-white/20 border-x border-t border-zinc-200/50 px-8 py-16 text-center space-y-4">
+            <span className="text-[9px] font-bold uppercase tracking-[0.3em] block text-[#7E8268]">Welcome</span>
+            <p className="font-script text-3xl text-zinc-800 leading-relaxed max-w-xs mx-auto font-light">
               "{content.welcome_note}"
             </p>
           </section>
         )}
 
-        {/* Countdown */}
-        <section className="w-full max-w-xl bg-zinc-950 border-x border-t border-zinc-900 px-12 py-16 text-center">
-          <h2 className="font-serif text-2xl font-light text-zinc-200 mb-10 tracking-wide">
-            The Golden <span className="italic font-normal">Countdown</span>
-          </h2>
-          <div className="grid grid-cols-4 gap-3 max-w-xs mx-auto">
-            {[
-              { val: countdown.days, lbl: "Days" },
-              { val: countdown.hours, lbl: "Hours" },
-              { val: countdown.mins, lbl: "Mins" },
-              { val: countdown.secs, lbl: "Secs" },
-            ].map(({ val, lbl }) => (
-              <div key={lbl} className="bg-zinc-900 border border-amber-500/20 rounded-xl p-3 flex flex-col items-center shadow-xs">
-                <span className="font-serif text-2xl font-semibold" style={{ color: accentColor }}>{val}</span>
-                <span className="text-[9px] uppercase tracking-wider text-zinc-400 mt-1">{lbl}</span>
-              </div>
-            ))}
-          </div>
+        {/* Ornate Frame Schedule (Program) */}
+        <section className="w-full max-w-md bg-white/20 border-x border-t border-zinc-200/50 px-6 py-12 space-y-4">
+          <OrnateFrame title="Program">
+            <div className="space-y-8 py-2">
+              {[
+                { title: `${ceremonyType} Ceremony`, time: displayTime, desc: "Ceremony & Union" },
+                { title: "Grand Banquet", time: "08:30 PM", desc: "Banquet dinner & reception" }
+              ].map((evt, idx) => (
+                <div key={idx} className="space-y-1.5 text-center">
+                  <h4 className="font-serif-luxury text-sm font-semibold text-[#7E8268] uppercase tracking-wider">{evt.title}</h4>
+                  <p className="text-xs font-semibold text-zinc-900 tracking-wide">{evt.time}</p>
+                  <p className="text-[10px] text-zinc-400 uppercase tracking-widest">{evt.desc}</p>
+                  {idx === 0 && <div className="w-1.5 h-6 border-l border-[#8D8675]/30 mx-auto my-3" />}
+                </div>
+              ))}
+            </div>
+          </OrnateFrame>
         </section>
 
-        {/* Our Story (Optional) */}
-        {content.our_story && (
-          <section className="w-full max-w-xl bg-zinc-950 border-x border-t border-zinc-900 px-12 py-16 text-center space-y-6">
-            <span className="text-[10px] font-bold uppercase tracking-[0.25em]" style={{ color: accentColor }}>Our Love Story</span>
-            <h2 className="font-serif text-2xl font-light text-zinc-200 tracking-wide">
-              How We <span className="italic font-normal">Began</span>
-            </h2>
-            <p className="text-xs text-zinc-400 italic max-w-sm mx-auto leading-relaxed whitespace-pre-line">
-              {content.our_story}
-            </p>
-          </section>
-        )}
-
-        {/* Photo Album / Gallery */}
+        {/* Photo Album (Optional) */}
         {content.photo_album_enabled && content.photo_album && content.photo_album.filter(Boolean).length > 0 && (
-          <section className="w-full max-w-xl bg-zinc-950 border-x border-t border-zinc-900 px-6 py-16 text-center space-y-8">
-            <span className="text-[10px] font-bold uppercase tracking-[0.25em]" style={{ color: accentColor }}>Memories</span>
-            <h2 className="font-serif text-2xl font-light text-zinc-200 tracking-wide">
-              Our <span className="italic font-normal">Photo Album</span>
+          <section className="w-full max-w-md bg-white/20 border-x border-t border-zinc-200/50 px-6 py-16 text-center space-y-6">
+            <span className="text-[9px] font-bold uppercase tracking-[0.3em] text-[#7E8268]">Gallery</span>
+            <h2 className="font-serif-luxury text-2xl font-light text-zinc-800 tracking-wide italic">
+              Our Photo Album
             </h2>
-            <div className="grid grid-cols-2 gap-3.5 max-w-md mx-auto">
+            <div className="grid grid-cols-2 gap-3 max-w-xs mx-auto">
               {content.photo_album.filter(Boolean).map((imgUrl, idx) => (
                 <div 
                   key={idx} 
-                  className="aspect-square rounded-xl overflow-hidden border border-amber-500/20 shadow-md hover:scale-[1.02] transition duration-300 relative group cursor-pointer"
+                  className="aspect-square rounded-[1.5rem] overflow-hidden border border-zinc-200/50 shadow-2xs hover:scale-[1.02] transition duration-300 relative group cursor-pointer"
                 >
-                  <img src={imgUrl} alt={`Album Memory ${idx + 1}`} className="w-full h-full object-cover" />
-                  <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition duration-350" />
+                  <img src={imgUrl} alt={`Album memory ${idx + 1}`} className="w-full h-full object-cover" />
+                  <div className="absolute inset-0 bg-black/5 group-hover:bg-transparent transition duration-300" />
                 </div>
               ))}
             </div>
           </section>
         )}
 
-        {/* Event Schedule */}
-        <section className="w-full max-w-xl bg-zinc-950 border-x border-t border-zinc-900 px-12 py-16 space-y-12">
-          <h2 className="font-serif text-2xl font-light text-zinc-200 text-center tracking-wide">
-            Royal <span className="italic font-normal">Schedule</span>
-          </h2>
-          <div className="space-y-6">
-            {[
-              { title: `${ceremonyType} Ceremony`, time: `${displayTime}${content.end_date_time ? ` - ${content.end_date_time}` : ""}`, venue: venue, dress: "Royal ethic wear" },
-              { title: "Valima / Grand Banquet", time: "08:30 PM onwards", venue: venue, dress: "Black tie formal" },
-            ].map((evt) => (
-              <div key={evt.title} className="bg-zinc-900/60 border border-amber-500/10 p-6 rounded-2xl">
-                <h3 className="font-serif text-lg font-medium text-amber-200">{evt.title}</h3>
-                <div className="h-px bg-zinc-800 my-3" />
-                <div className="space-y-2 text-xs text-zinc-400">
-                  <p>⏰ <strong>Time:</strong> {evt.time}</p>
-                  <p>📍 <strong>Venue:</strong> {evt.venue}</p>
-                  <p>👔 <strong>Dress Code:</strong> {evt.dress}</p>
-                </div>
+        {/* Ornate Frame Address & Location Map */}
+        <section className="w-full max-w-md bg-white/20 border-x border-t border-zinc-200/50 px-6 py-12 text-center space-y-4">
+          <OrnateFrame title="Address">
+            <div className="space-y-4 py-2">
+              <h4 className="font-serif-luxury text-sm font-semibold text-[#7E8268] uppercase tracking-wider">{venue}</h4>
+              <p className="text-[10px] text-zinc-500 uppercase tracking-widest leading-relaxed max-w-[200px] mx-auto">
+                {venueAddress}
+              </p>
+              
+              <div className="h-44 bg-zinc-150 rounded-2xl overflow-hidden border border-zinc-200/40 relative mt-4">
+                <iframe
+                  src={`https://maps.google.com/maps?q=${encodeURIComponent(`${venue}, ${venueAddress}`)}&t=&z=14&ie=UTF8&iwloc=&output=embed`}
+                  width="100%" height="100%"
+                  style={{ border: 0 }}
+                  allowFullScreen=""
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                />
               </div>
-            ))}
-          </div>
-        </section>
 
-        {/* Map Location */}
-        <section className="w-full max-w-xl bg-zinc-950 border-x border-t border-zinc-900 px-12 py-16 space-y-8">
-          <h2 className="font-serif text-2xl font-light text-zinc-200 text-center tracking-wide">
-            The Banquet <span className="italic font-normal">Location</span>
-          </h2>
-          <div className="h-60 bg-zinc-900 rounded-2xl overflow-hidden border border-amber-500/15 relative">
-            <iframe
-              src={`https://maps.google.com/maps?q=${encodeURIComponent(`${venue}, ${venueAddress}`)}&t=&z=14&ie=UTF8&iwloc=&output=embed`}
-              width="100%" height="100%"
-              style={{ border: 0 }}
-              allowFullScreen=""
-              loading="lazy"
-              referrerPolicy="no-referrer-when-downgrade"
-            />
-          </div>
-          <div className="text-center">
-            <p className="text-xs text-zinc-450 max-w-xs mx-auto mb-6">{venueAddress}</p>
-            <a
-              href={content.google_map_link || `https://maps.google.com/?q=${encodeURIComponent(`${venue}, ${venueAddress}`)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 text-zinc-950 font-bold py-3.5 px-8 rounded-xl text-xs uppercase tracking-widest shadow-md transition"
-              style={{ backgroundColor: accentColor }}
-            >
-              Get Location Map
-            </a>
-          </div>
+              <div className="pt-4">
+                <a
+                  href={content.google_map_link || `https://maps.google.com/?q=${encodeURIComponent(`${venue}, ${venueAddress}`)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-block text-white font-bold py-3 px-6 rounded-full text-[10px] uppercase tracking-widest shadow-xs transition hover:bg-[#6b6f58]"
+                  style={{ backgroundColor: "#7E8268" }}
+                >
+                  Open on Map
+                </a>
+              </div>
+            </div>
+          </OrnateFrame>
         </section>
 
         {/* RSVP Form */}
         {content.rsvp_enabled && (
-          <section className="w-full max-w-xl bg-zinc-950 border-x border-t border-zinc-900 px-12 py-16 space-y-8 pb-16">
-            <h2 className="font-serif text-2xl font-light text-zinc-150 text-center tracking-wide">
-              Confirm <span className="italic font-normal">Attendance</span>
+          <section className="w-full max-w-md bg-white/20 border-x border-t border-zinc-200/50 px-8 py-16 space-y-6 pb-16 text-center">
+            <span className="text-[9px] font-bold uppercase tracking-[0.3em] text-[#7E8268]">RSVP</span>
+            <h2 className="font-script text-4xl text-zinc-800 leading-relaxed font-normal">
+              Attendance
             </h2>
 
             {rsvpSubmitted ? (
               <motion.div
                 initial={{ opacity: 0, scale: 0.98 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="text-center p-8 bg-zinc-900 border border-amber-500/20 rounded-2xl max-w-sm mx-auto space-y-3"
+                className="text-center p-6 bg-white/70 border border-zinc-200/40 rounded-[2rem] max-w-xs mx-auto space-y-3 shadow-xs"
               >
-                <div className="h-10 w-10 bg-emerald-950 border border-emerald-800 text-emerald-400 rounded-full flex items-center justify-center mx-auto text-lg">✓</div>
-                <h3 className="font-serif text-lg font-medium text-zinc-100">Blessings Received</h3>
-                <p className="text-xs text-zinc-400 leading-relaxed">Thank you for confirming your presence.</p>
+                <div className="h-10 w-10 bg-emerald-50 border border-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto text-lg">✓</div>
+                <h3 className="font-serif-luxury text-base font-semibold text-zinc-800">Attendance Confirmed</h3>
+                <p className="text-[11px] text-zinc-400">Thank you for letting us know!</p>
               </motion.div>
             ) : (
-              <form onSubmit={handleRsvpSubmit} className="space-y-4 max-w-sm mx-auto">
+              <form onSubmit={handleRsvpSubmit} className="space-y-4 max-w-xs mx-auto">
                 {rsvpError && (
-                  <div className="bg-red-950 border border-red-900 text-red-400 text-xs font-medium px-4 py-3 rounded-xl">{rsvpError}</div>
+                  <div className="bg-red-50 border border-red-100 text-red-500 text-xs px-4 py-2.5 rounded-xl">{rsvpError}</div>
                 )}
-                <input
-                  type="text" required placeholder="Guest Name"
-                  value={rsvpData.guest_name}
-                  onChange={(e) => setRsvpData({ ...rsvpData, guest_name: e.target.value })}
-                  className="w-full bg-zinc-900 border border-amber-500/20 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-amber-500/50 text-zinc-100 placeholder:text-zinc-500"
-                />
-                <select 
-                  value={rsvpData.status} 
-                  onChange={(e) => setRsvpData({ ...rsvpData, status: e.target.value })} 
-                  className="w-full bg-zinc-900 border border-amber-500/20 rounded-xl px-4 py-3 text-sm focus:outline-none text-zinc-450"
-                >
-                  <option value="attending">Will Attend</option>
-                  <option value="declined">Will Decline</option>
-                </select>
+                
+                <div className="space-y-1 text-left">
+                  <label className="block text-[10px] uppercase font-bold text-zinc-400 tracking-wider ml-1">Name</label>
+                  <input
+                    type="text" required placeholder="Your full name"
+                    value={rsvpData.guest_name}
+                    onChange={(e) => setRsvpData({ ...rsvpData, guest_name: e.target.value })}
+                    className="w-full bg-white/70 border border-zinc-250/70 rounded-xl px-4 py-3 text-xs focus:outline-none focus:ring-1 focus:ring-[#7E8268]/50 text-zinc-800 placeholder:text-zinc-400 transition"
+                  />
+                </div>
+
+                {/* Custom radio-style options matching screenshot */}
+                <div className="space-y-2.5 text-left pt-2">
+                  <label className="block text-[10px] uppercase font-bold text-zinc-400 tracking-wider ml-1">Will you attend?</label>
+                  {[
+                    { value: "attending", label: "Will Attend" },
+                    { value: "declined", label: "Will Decline" }
+                  ].map((opt) => (
+                    <label key={opt.value} className="flex items-center gap-3 p-3 rounded-xl border border-zinc-200/60 bg-white/50 cursor-pointer hover:bg-white/80 transition">
+                      <input
+                        type="radio"
+                        name="rsvp_status"
+                        value={opt.value}
+                        checked={rsvpData.status === opt.value}
+                        onChange={() => setRsvpData({ ...rsvpData, status: opt.value })}
+                        className="h-3.5 w-3.5 text-[#7E8268] border-zinc-300 focus:ring-[#7E8268]"
+                      />
+                      <span className="text-xs font-medium text-zinc-700">{opt.label}</span>
+                    </label>
+                  ))}
+                </div>
+
                 <button
                   type="submit" disabled={rsvpLoading}
-                  className="w-full text-zinc-950 font-bold py-4 rounded-xl text-xs uppercase tracking-widest transition-colors cursor-pointer disabled:opacity-50"
-                  style={{ backgroundColor: accentColor }}
+                  className="w-full text-white font-bold py-4 rounded-xl text-[10px] uppercase tracking-widest transition-colors cursor-pointer disabled:opacity-50 mt-4 hover:bg-[#6b6f58] shadow-xs"
+                  style={{ backgroundColor: "#7E8268" }}
                 >
-                  {rsvpLoading ? "Confirming…" : "Send RSVP"}
+                  {rsvpLoading ? "Sending…" : "Send RSVP"}
                 </button>
               </form>
             )}
@@ -471,24 +515,53 @@ export default function BeginForever({ content = {}, mode = "live", onRsvpSubmit
 
         {/* Attributions Section (Optional) */}
         {(content.attribution_heading || content.attribution_names) && (
-          <section className="w-full max-w-xl bg-zinc-950 border-x border-t border-zinc-900 px-12 py-16 text-center space-y-2 pb-24">
+          <section className="w-full max-w-md bg-white/20 border-x border-t border-zinc-200/50 px-8 py-16 text-center space-y-2">
             {content.attribution_heading && (
-              <span className="text-[10px] font-bold uppercase tracking-[0.25em] block" style={{ color: accentColor }}>
+              <span className="text-[9px] font-bold uppercase tracking-[0.3em] block text-[#7E8268]">
                 {content.attribution_heading}
               </span>
             )}
             {content.attribution_names && (
-              <p className="font-serif text-2xl font-light italic text-zinc-150">
+              <p className="font-script text-3xl text-zinc-800 leading-relaxed max-w-xs mx-auto">
                 {content.attribution_names}
               </p>
             )}
           </section>
         )}
+
+        {/* Clean minimal Countdown Timer section */}
+        <section className="w-full max-w-md bg-white/20 border-x border-t border-zinc-200/50 px-8 py-16 text-center">
+          <span className="text-[9px] font-script text-3xl text-[#7E8268] block mb-6">
+            With love,
+          </span>
+          <h3 className="font-script text-4xl text-zinc-800 leading-relaxed font-normal mb-8">
+            {partner1} &amp; {partner2}
+          </h3>
+          
+          <div className="inline-flex items-center justify-center border border-zinc-250/70 rounded-full px-8 py-3.5 bg-white/40 backdrop-blur-xs shadow-2xs gap-3">
+            {[
+              { val: countdown.days, lbl: "days" },
+              { val: countdown.hours, lbl: "hours" },
+              { val: countdown.mins, lbl: "mins" },
+              { val: countdown.secs, lbl: "secs" }
+            ].map((col, idx) => (
+              <React.Fragment key={col.lbl}>
+                <div className="text-center flex flex-col items-center">
+                  <span className="font-serif-luxury text-base font-semibold text-zinc-800 leading-none">{String(col.val).padStart(2, "0")}</span>
+                  <span className="text-[8px] text-zinc-400 font-bold uppercase tracking-wider mt-1">{col.lbl}</span>
+                </div>
+                {idx < 3 && <span className="text-[#8D8675]/50 font-serif-luxury text-sm leading-none mt-[-6px]">:</span>}
+              </React.Fragment>
+            ))}
+          </div>
+        </section>
+
       </div>
 
+      {/* Footer / Branding */}
       {!hideBranding && (
-        <footer className="text-center text-[10px] text-zinc-500 py-8 border-t border-zinc-900 max-w-xl mx-auto w-full">
-          Made with Cardessa Royal Begin Forever Theme
+        <footer className="text-center text-[9px] text-zinc-400 py-8 border-t border-zinc-200/40 max-w-md mx-auto w-full bg-white/10">
+          Made with Cardessa Begin Forever Theme
         </footer>
       )}
     </div>

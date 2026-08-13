@@ -110,12 +110,16 @@ export default function LoginPage() {
             </footer>
           </blockquote>
 
-          {/* Stats row */}
-          <div className="flex gap-8 pt-4 border-t border-brand-bg/10">
-            {[["2,400+", "Couples"], ["98%", "Satisfaction"], ["12+", "Designs"]].map(([num, label]) => (
-              <div key={label}>
-                <p className="font-serif text-xl font-semibold text-brand-bg">{num}</p>
-                <p className="text-[10px] text-brand-bg/40 uppercase tracking-widest mt-0.5">{label}</p>
+          {/* Feature checklist */}
+          <div className="space-y-4 pt-6 border-t border-brand-bg/10">
+            {[
+              "Cinematic opening animations",
+              "Real-time RSVP guest tracking",
+              "Interactive photo albums & maps",
+            ].map((text) => (
+              <div key={text} className="flex items-center gap-3 text-brand-bg/75">
+                <span className="text-brand-accent text-xs">✦</span>
+                <span className="text-[10px] uppercase tracking-widest font-semibold">{text}</span>
               </div>
             ))}
           </div>
